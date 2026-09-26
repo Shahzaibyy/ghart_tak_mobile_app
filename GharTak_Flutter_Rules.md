@@ -1,0 +1,177 @@
+# GharTak Frontend (Flutter) — Engineering Rules (for AI agents / Cursor)
+
+**How to use this file:** Drop at repo root as `.cursorrules`, or under `.cursor/rules/frontend.mdc`. Applies to both the Customer app and Rider app (shared codebase or shared packages). Follow without exception.
+
+---
+
+## 0. Architecture Decision — locked in, don't relitigate
+
+**State management: Riverpod (`flutter_riverpod` + `riverpod_generator`), using `Notifier`/`AsyncNotifier`.**
+**Structure: Feature-first, Clean Architecture layers inside each feature.**
+
+Why, for this project specifically:
+- The app is fundamentally reactive/real-time: live rider location, order status streams, online/offline toggling. Riverpod's `AsyncNotifier`/`StreamProvider` model these as first-class async state — no manual boolean flags, no BuildContext-dependent lookups, no accidental provider-not-found runtime crashes (compile-time safety).
+- Feature-first (not layer-first) so an agent working on "orders" never has to touch files under "auth" or "tracking" — matches the same module-isolation principle used in the Go backend rules.
+
+**Do not introduce GetX.** It encourages a service-locator style that hides dependencies and makes AI-agent-generated code harder to reason about and test — the same failure mode you're trying to eliminate. **Do not mix Riverpod with Provider or Bloc in the same codebase.**
+
+---
+
+## 1. Project Structure
+
+```
+lib/
+  core/
+    network/          # Dio client + interceptors (auth, retry, logging)
+    storage/           # flutter_secure_storage wrapper, local db (hive/sqflite)
+    errors/             # Failure sealed classes
+    theme/, widgets/    # shared design system, reusable widgets
+    utils/
+  features/
+    auth/
+      data/            # data sources, repository implementation
+      domain/           # entities, repository interface, use cases
+      presentation/     # screens, widgets, riverpod providers/notifiers
+    orders/
+    tracking/           # live map + websocket
+    payments/
+    profile/
+    rider_dashboard/    # rider-app-only feature
+  main.dart
+```
+
+Rules:
+- A feature's `data/` layer is the ONLY place that touches Dio/HTTP or local storage directly.
+- A feature's `presentation/` layer never calls a repository directly — only through a `Notifier` that depends on a use case / repository interface.
+- Cross-feature calls go through the other feature's exported domain interface, never by importing another feature's `data/` or `presentation/` internals.
+
+---
+
+## 2. Control Flow — same rule as the backend, applied to Dart/Flutter
+
+**The failure mode to eliminate: deeply nested if/else in build methods, manual boolean loading flags instead of proper async state, and defensive null-checks on values that shouldn't be nullable in the first place.**
+
+1. **No nested if/else in `build()`.** Extract conditional UI into separate methods or widgets. A `build()` method with 3+ levels of nesting is a hard review-blocker — refactor it.
+
+2. **Model async state as `AsyncValue<T>`, never manual `isLoading`/`hasError` booleans.**
+   ```dart
+   // WRONG
+   bool isLoading = false;
+   String? errorMessage;
+   Order? order;
+
+   // RIGHT
+   AsyncValue<Order> orderState; // .when(data:, loading:, error:) in the UI
+   ```
+
+3. **Use Dart 3 sealed classes + exhaustive `switch` for state-based branching — never a string/enum if-else chain.** This directly applies to order status, which is a literal finite state machine:
+   ```dart
+   sealed class OrderStatus {}
+   class Placed extends OrderStatus {}
+   class Accepted extends OrderStatus {}
+   class PickedUp extends OrderStatus {}
+   class Delivered extends OrderStatus {}
+   class Cancelled extends OrderStatus {}
+
+   String label(OrderStatus s) => switch (s) {
+     Placed() => 'Order placed',
+     Accepted() => 'Rider on the way to pickup',
+     PickedUp() => 'On the way to you',
+     Delivered() => 'Delivered',
+     Cancelled() => 'Cancelled',
+   };
+   ```
+   The compiler forces every case to be handled — eliminates the "forgot to handle a status" bug class entirely, which an if-else chain cannot guarantee.
+
+4. **Don't defensively null-check values the type system already guarantees non-null.** If a repository method's return type is `Future<Order>` (not `Order?`), the caller does not add an `if (order != null)` afterward. Model genuinely optional data with a proper type (`Order?` only where null is a real, meaningful state), not as a blanket habit.
+
+5. **Cyclomatic complexity ceiling: max 4 branches per method**, same as backend. A 5th branch means extract a helper, a sealed-class switch, or a separate widget.
+
+---
+
+## 3. Riverpod-Specific Rules
+
+- Use `ref.watch(...)` only inside `build()`/widget-reactive contexts. Use `ref.read(...)` inside callbacks (`onPressed`, event handlers) — never `ref.watch` inside a callback.
+- Prefer `.select()` to watch a single field of a large state object, so widgets don't rebuild on unrelated state changes.
+- Providers are scoped to the feature that owns them; avoid one giant global "app state" provider.
+- `AsyncNotifier.build()` does the initial fetch; mutating methods call `state = AsyncValue.data(...)` or use `AsyncValue.guard(...)` to capture errors — never manually try/catch and set a separate error field.
+
+---
+
+## 4. Data Layer
+
+- **HTTP:** `dio`, with interceptors for JWT attachment, silent refresh-token retry, and structured logging. No bare `http` package calls scattered in the app.
+- **Repository pattern:** Presentation layer never calls Dio directly — always through a repository interface defined in `domain/`, implemented in `data/`. Mirrors the backend's repository pattern so the mental model is consistent across the whole stack.
+- **Models:** `freezed` + `json_serializable` for all API models — generated `copyWith`, equality, and `fromJson`/`toJson`. No hand-written model boilerplate, no manual `==` overrides (source of subtle bugs).
+- **WebSocket (live location/order status):** wrapped in a dedicated service exposing a `Stream`, consumed via a `StreamProvider`/`AsyncNotifier`. Widgets never open or manage a raw `WebSocketChannel` themselves.
+
+---
+
+## 5. Offline Resilience (per SRS — rider app must queue actions offline)
+
+- Use `hive` (lightweight, no native SQL needed) to locally queue pending rider actions (status updates, delivery confirmations) when the network is unavailable.
+- Use `connectivity_plus` to detect reconnection and trigger a flush of the queue, in FIFO order, with per-item retry/backoff — not a single all-or-nothing resync.
+- Never block the UI on a queued action "succeeding" — optimistic UI update, reconcile silently if the eventual sync fails (surface a non-blocking indicator, not a modal).
+
+---
+
+## 6. Google Maps Integration
+
+- `google_maps_flutter` official plugin only.
+- Update marker positions via the controller (`Marker` object mutation / `GoogleMapController` methods), not by rebuilding the whole `GoogleMap` widget on every location tick — a full rebuild on every 5-second location update is both a performance and a Maps-API-cost problem.
+- Cache geocoding/reverse-geocoding results locally (address → lat/lng) — never re-geocode the same saved address repeatedly. Ties directly to the Google Maps cost line in the PRD.
+- Dispose `GoogleMapController` in the widget's `dispose()` — undisposed controllers are a common Flutter memory leak.
+
+---
+
+## 7. Widget & Performance Rules
+
+- `const` constructors everywhere possible — this is a correctness-adjacent rule here, not just style: missing `const` causes avoidable rebuild cascades.
+- `ListView.builder`/`GridView.builder` for any list that could exceed ~20 items — never `Column(children: list.map(...).toList())` for catalog/order lists.
+- No business logic inside `build()` — widgets read state and dispatch actions only; calculations, formatting, and validation live in the domain/notifier layer.
+- `cached_network_image` for all remote images (merchant photos, catalog items) — no bare `Image.network` in production screens.
+- Keep widgets small: a `build()` method over ~80 lines is a signal to extract a child widget.
+
+---
+
+## 8. Error Handling
+
+- Sealed `Failure` classes (`NetworkFailure`, `ServerFailure`, `ValidationFailure`, `AuthFailure`) — exceptions are caught and mapped to a `Failure` at the repository boundary only, once. Presentation code switches over `Failure` types, never inspects raw exception messages or strings.
+- No empty `catch` blocks, ever. Every caught error either updates state to an error case or is logged — never silently swallowed.
+
+---
+
+## 9. Security
+
+- API keys (Google Maps, backend base URL) injected at build time via `--dart-define`, never hardcoded in source or committed to git.
+- JWT/refresh tokens stored via `flutter_secure_storage` — never `SharedPreferences` for anything auth-related.
+- Release builds obfuscated: `flutter build apk --obfuscate --split-debug-info=./debug-symbols`.
+- No sensitive data (tokens, CNIC, phone numbers) in `print()`/debug logs, even during development — strip before merge.
+
+---
+
+## 10. Linting
+
+- `flutter_lints` at minimum; prefer `very_good_analysis` for stricter enforcement, committed via `analysis_options.yaml`.
+- CI fails the build on any lint warning, not just errors.
+
+---
+
+## 11. Testing
+
+- Unit test `Notifier`s/use-cases against mocked repositories (`mocktail`).
+- Widget tests for critical flows: checkout, live tracking screen, rider accept/reject.
+- Every bug fix ships with a regression test reproducing it first — same rule as the backend.
+
+---
+
+## 12. Definition of Done (checklist for every task)
+
+- [ ] No nested if/else beyond one guard-clause level in any `build()` or method; ≤ 4 branches per method
+- [ ] Async state modeled as `AsyncValue<T>`, not manual boolean flags
+- [ ] Status/kind-based UI uses a sealed class + exhaustive `switch`, not an if-else/string chain
+- [ ] No defensive null-checks on non-nullable-by-contract values
+- [ ] All API calls go through a repository interface, never Dio called directly from presentation
+- [ ] All remote images use `cached_network_image`; all long lists use `.builder` constructors
+- [ ] No secrets/tokens hardcoded or logged
+- [ ] Widget/unit tests added for new logic
