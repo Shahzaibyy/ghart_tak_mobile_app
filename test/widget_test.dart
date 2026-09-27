@@ -88,7 +88,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('What do you need?'), findsOneWidget);
+    expect(find.text('Featured merchants'), findsOneWidget);
     expect(find.text('Tandoor House'), findsWidgets);
   });
 }

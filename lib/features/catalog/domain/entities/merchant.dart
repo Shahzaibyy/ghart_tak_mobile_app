@@ -13,6 +13,13 @@ class Merchant {
     required this.etaMinutes,
     required this.area,
     required this.items,
+    this.ratingCount = '1k+',
+    this.deliveryFeeRupees = 75,
+    this.minOrderRupees = 400,
+    this.blurb = 'Local favorites',
+    this.badge = 'Open',
+    this.perk = '',
+    this.etaLabel = '',
   });
 
   /// Merchant id.
@@ -38,6 +45,33 @@ class Merchant {
 
   /// Menu or catalog.
   final List<CatalogItem> items;
+
+  /// Compact rating volume, such as 1.2k.
+  final String ratingCount;
+
+  /// Typical delivery fee in rupees.
+  final int deliveryFeeRupees;
+
+  /// Minimum basket.
+  final int minOrderRupees;
+
+  /// Short menu line.
+  final String blurb;
+
+  /// Open, direct mart, or verified.
+  final String badge;
+
+  /// Extra promise, empty when there is none.
+  final String perk;
+
+  /// Range such as 25-30 min. Falls back to a single ETA.
+  final String etaLabel;
+
+  /// Time chip on the photo.
+  String get etaSpan {
+    if (etaLabel.isEmpty) return '$etaMinutes min';
+    return etaLabel;
+  }
 }
 
 /// Home feed after category and search filters.

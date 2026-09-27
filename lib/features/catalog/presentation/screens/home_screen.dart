@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/widgets/async_value_view.dart';
@@ -7,13 +9,14 @@ import 'package:attock_xpress/features/catalog/domain/entities/feed_category.dar
 import 'package:attock_xpress/features/catalog/domain/entities/merchant.dart';
 import 'package:attock_xpress/features/catalog/presentation/providers/catalog_controller.dart';
 import 'package:attock_xpress/features/catalog/presentation/widgets/active_order_card.dart';
-import 'package:attock_xpress/features/catalog/presentation/widgets/category_strip.dart';
 import 'package:attock_xpress/features/catalog/presentation/widgets/merchant_card.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Customer home. Merchants, search, and the live order.
+const _homeAddress = 'House 18, Street 4, Peoples Colony';
+
+/// Customer home. Address, categories, and featured merchants.
 class HomeScreen extends ConsumerWidget {
   /// Creates the home feed.
   const new({
@@ -53,6 +56,7 @@ class HomeScreen extends ConsumerWidget {
         onTrack: onTrack,
         onOpenMerchant: onOpenMerchant,
         onCategory: (category) => _choose(ref, category),
+        onQuickOrder: () => onCompose(const Errands()),
         onSearch: (query) {
           ref.read(catalogControllerProvider.notifier).search(query);
         },
@@ -78,6 +82,7 @@ class _Feed extends StatelessWidget {
     required this.onTrack,
     required this.onOpenMerchant,
     required this.onCategory,
+    required this.onQuickOrder,
     required this.onSearch,
   });
 
@@ -87,6 +92,7 @@ class _Feed extends StatelessWidget {
   final VoidCallback onTrack;
   final ValueChanged<Merchant> onOpenMerchant;
   final ValueChanged<FeedCategory> onCategory;
+  final VoidCallback onQuickOrder;
   final ValueChanged<String> onSearch;
 
   @override
@@ -94,19 +100,23 @@ class _Feed extends StatelessWidget {
     return CustomScrollView(
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
           sliver: SliverToBoxAdapter(
             child: _Header(
               displayName: displayName,
-              feed: feed,
               active: active,
               onTrack: onTrack,
               onCategory: onCategory,
+              onQuickOrder: onQuickOrder,
               onSearch: onSearch,
             ),
           ),
         ),
         _MerchantSliver(feed: feed, onOpenMerchant: onOpenMerchant),
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 28),
+          sliver: SliverToBoxAdapter(child: _Promise()),
+        ),
       ],
     );
   }
@@ -115,48 +125,112 @@ class _Feed extends StatelessWidget {
 class _Header extends StatelessWidget {
   const new({
     required this.displayName,
-    required this.feed,
     required this.active,
     required this.onTrack,
     required this.onCategory,
+    required this.onQuickOrder,
     required this.onSearch,
   });
 
   final String displayName;
-  final CatalogFeed feed;
   final Order? active;
   final VoidCallback onTrack;
   final ValueChanged<FeedCategory> onCategory;
+  final VoidCallback onQuickOrder;
   final ValueChanged<String> onSearch;
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).textTheme.bodySmall;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _Top(name: displayName),
+        const SizedBox(height: 14),
+        const _Address(),
+        const SizedBox(height: 12),
+        _SearchField(onSearch: onSearch),
+        const SizedBox(height: 18),
+        _Explore(onQuickOrder: onQuickOrder, onCategory: onCategory),
+        const SizedBox(height: 16),
+        const _Promo(),
+        const SizedBox(height: 16),
+        ActiveOrderCard(order: active, onTap: onTrack),
         Row(
           children: [
             Expanded(
-              child: Text('Attock City', style: muted),
+              child: Text(
+                'Featured merchants',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
             ),
-            GhAvatar(name: displayName),
+            TextButton(
+              onPressed: () => onCategory(const Restaurants()),
+              child: const Text('See all'),
+            ),
           ],
         ),
-        const SizedBox(height: 12),
         Text(
-          'What do you need?',
-          style: Theme.of(context).textTheme.displaySmall,
+          'Kitchens, marts, and pharmacies around Attock',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
-        const SizedBox(height: 16),
-        _SearchField(onSearch: onSearch),
-        const SizedBox(height: 16),
-        CategoryStrip(selected: feed.category, onSelected: onCategory),
-        const SizedBox(height: 20),
-        ActiveOrderCard(order: active, onTap: onTrack),
-        Text('Nearby', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
       ],
+    );
+  }
+}
+
+class _Top extends StatelessWidget {
+  const new({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(GhIcons.truck, color: AppColors.primary, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('DELIVER TO', style: Theme.of(context).textTheme.bodySmall),
+              Text('Home', style: Theme.of(context).textTheme.titleLarge),
+            ],
+          ),
+        ),
+        IconButton(
+          onPressed: () => _note(context, 'No new alerts'),
+          icon: const Icon(GhIcons.bell),
+        ),
+        GhAvatar(name: name),
+      ],
+    );
+  }
+}
+
+class _Address extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      child: InkWell(
+        onTap: () => _note(context, _homeAddress),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Icon(GhIcons.mapPin, size: 16, color: AppColors.primary),
+              SizedBox(width: 8),
+              Expanded(child: Text(_homeAddress)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -184,11 +258,212 @@ class _SearchFieldState extends State<_SearchField> {
     return TextField(
       controller: _controller,
       onChanged: widget.onSearch,
-      decoration: const InputDecoration(
-        hintText: 'Search kitchens and stores',
-        prefixIcon: Icon(
-          GhIcons.magnifyingGlass,
-          color: AppColors.textMuted,
+      decoration: InputDecoration(
+        hintText: 'Search kitchens, marts, or a parcel',
+        prefixIcon: const Icon(GhIcons.magnifyingGlass),
+        suffixIcon: IconButton(
+          onPressed: () => _note(context, 'Voice search is a preview'),
+          icon: const Icon(GhIcons.microphone),
+        ),
+      ),
+    );
+  }
+}
+
+class _Explore extends StatelessWidget {
+  const new({required this.onQuickOrder, required this.onCategory});
+
+  final VoidCallback onQuickOrder;
+  final ValueChanged<FeedCategory> onCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'EXPLORE GHARTAK',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            TextButton(
+              onPressed: onQuickOrder,
+              child: const Text('Quick order'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _Tile(
+                icon: GhIcons.forkKnife,
+                title: 'Restaurants',
+                caption: 'Kitchens nearby',
+                onTap: () => onCategory(const Restaurants()),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _Tile(
+                icon: GhIcons.storefront,
+                title: 'Marts',
+                caption: 'Instant pantry',
+                onTap: () => onCategory(const Marts()),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _Tile(
+                icon: GhIcons.firstAid,
+                title: 'Pharmacy',
+                caption: 'Prescriptions',
+                onTap: () => onCategory(const Pharmacies()),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Tile extends StatelessWidget {
+  const new({
+    required this.icon,
+    required this.title,
+    required this.caption,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String caption;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: dark ? AppColors.darkSurface : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Column(
+            children: [
+              Icon(icon, color: AppColors.primary),
+              const SizedBox(height: 8),
+              Text(title, style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                caption,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Promo extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.peach,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(GhIcons.tag, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Free deliveries on first 3 orders',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  Text(
+                    'Apply GHARTAKFREE at checkout',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const _ActivePill(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivePill extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(
+          'Active',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: AppColors.surface,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Promise extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: dark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: dark ? AppColors.darkLine : AppColors.line),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(GhIcons.shieldCheck, color: AppColors.primary),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('GharTak neighbourhood promise'),
+                  Text(
+                    'Fair rider pay, short routes, no shelf markup',
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -213,7 +488,7 @@ class _MerchantSliver extends StatelessWidget {
       );
     }
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       sliver: SliverList.builder(
         itemCount: feed.merchants.length,
         itemBuilder: (context, index) {
@@ -226,4 +501,18 @@ class _MerchantSliver extends StatelessWidget {
       ),
     );
   }
+}
+
+void _note(BuildContext context, String message) {
+  unawaited(
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          child: Text(message),
+        );
+      },
+    ),
+  );
 }

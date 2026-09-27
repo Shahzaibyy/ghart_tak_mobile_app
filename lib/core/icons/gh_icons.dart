@@ -37,6 +37,14 @@ abstract final class GhIcons {
   static const caretLeft = IconData(0xE138, fontFamily: 'PhosphorRegular');
   static const x = IconData(0xE4F6, fontFamily: 'PhosphorRegular');
   static const broadcast = IconData(0xE0F2, fontFamily: 'PhosphorRegular');
+  static const bell = IconData(0xE0CE, fontFamily: 'PhosphorRegular');
+  static const heart = IconData(0xE2A8, fontFamily: 'PhosphorRegular');
+  static const heartFill = IconData(0xE2A8, fontFamily: 'PhosphorFill');
+  static const truck = IconData(0xE4B4, fontFamily: 'PhosphorRegular');
+  static const microphone = IconData(0xE326, fontFamily: 'PhosphorRegular');
+  static const camera = IconData(0xE10E, fontFamily: 'PhosphorRegular');
+  static const tag = IconData(0xE478, fontFamily: 'PhosphorRegular');
+  static const chatCircle = IconData(0xE168, fontFamily: 'PhosphorRegular');
   static const starFill = IconData(0xE46A, fontFamily: 'PhosphorFill');
   static const checkFill = IconData(0xE182, fontFamily: 'PhosphorFill');
   static const packageFront = IconData(0xE391, fontFamily: 'PhosphorDuotone');

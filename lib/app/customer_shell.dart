@@ -15,6 +15,7 @@ import 'package:attock_xpress/features/orders/domain/entities/order_status.dart'
 import 'package:attock_xpress/features/orders/domain/entities/order_type.dart';
 import 'package:attock_xpress/features/orders/presentation/providers/orders_controller.dart';
 import 'package:attock_xpress/features/orders/presentation/screens/orders_screen.dart';
+import 'package:attock_xpress/features/payments/presentation/providers/wallet_controller.dart';
 import 'package:attock_xpress/features/payments/presentation/screens/payments_screen.dart';
 import 'package:attock_xpress/features/profile/presentation/screens/profile_screen.dart';
 import 'package:attock_xpress/features/tracking/presentation/screens/tracking_screen.dart';
@@ -45,6 +46,7 @@ class _CustomerShellState extends ConsumerState<CustomerShell> {
         children: [
           _home(activeOrder(orders)),
           _orders(),
+          const PaymentsScreen(),
           _profile(),
         ],
       ),
@@ -52,18 +54,10 @@ class _CustomerShellState extends ConsumerState<CustomerShell> {
         selectedIndex: _index,
         onDestinationSelected: (index) => setState(() => _index = index),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(GhIcons.house),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(GhIcons.receipt),
-            label: 'Orders',
-          ),
-          NavigationDestination(
-            icon: Icon(GhIcons.user),
-            label: 'Profile',
-          ),
+          NavigationDestination(icon: Icon(GhIcons.house), label: 'Home'),
+          NavigationDestination(icon: Icon(GhIcons.receipt), label: 'Orders'),
+          NavigationDestination(icon: Icon(GhIcons.wallet), label: 'Wallet'),
+          NavigationDestination(icon: Icon(GhIcons.user), label: 'Profile'),
         ],
       ),
     );
@@ -88,11 +82,7 @@ class _CustomerShellState extends ConsumerState<CustomerShell> {
 
   Widget _profile() {
     return ProfileScreen(
-      onOpenWallet: () {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const PaymentsScreen()),
-        );
-      },
+      onOpenWallet: () => setState(() => _index = 2),
       onLogout: () {
         unawaited(ref.read(authControllerProvider.notifier).logout());
       },
@@ -113,7 +103,10 @@ class _CustomerShellState extends ConsumerState<CustomerShell> {
   void _openCheckout() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => CheckoutScreen(onTrack: _openFreshTracking),
+        builder: (_) => CheckoutScreen(
+          onTrack: _openFreshTracking,
+          walletRupees: _walletRupees(),
+        ),
       ),
     );
   }
@@ -151,6 +144,11 @@ class _CustomerShellState extends ConsumerState<CustomerShell> {
         deliveryFee: 80,
       ),
     );
+  }
+
+  int _walletRupees() {
+    final amount = ref.read(walletControllerProvider).value?.amount;
+    return amount?.round() ?? 1240;
   }
 
   void _openTracking(Order order) {

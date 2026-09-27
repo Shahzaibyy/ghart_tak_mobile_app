@@ -1,15 +1,14 @@
+import 'dart:async';
+
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
-import 'package:attock_xpress/core/widgets/async_value_view.dart';
+import 'package:attock_xpress/core/widgets/gh_avatar.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_status.dart';
-import 'package:attock_xpress/features/tracking/domain/entities/rider_location.dart';
-import 'package:attock_xpress/features/tracking/presentation/providers/tracking_providers.dart';
-import 'package:attock_xpress/features/tracking/presentation/widgets/rider_marker_map.dart';
+import 'package:attock_xpress/features/tracking/presentation/widgets/customer_route_sketch.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Live rider map for one order.
-class TrackingScreen extends ConsumerWidget {
+/// Live order card over a route sketch.
+class TrackingScreen extends StatelessWidget {
   /// Creates the tracking screen for [orderId].
   const new({
     required this.orderId,
@@ -28,76 +27,105 @@ class TrackingScreen extends ConsumerWidget {
   final OrderStatus status;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final location = ref.watch(riderLocationProvider(orderId));
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: AsyncValueView<RiderLocation>(
-        value: location,
-        onRetry: () => ref.invalidate(riderLocationProvider(orderId)),
-        data: (fix) => _MapAndCard(location: fix, status: status),
+      body: Stack(
+        children: [
+          const Positioned.fill(child: CustomerRouteSketch()),
+          SafeArea(
+            child: Column(
+              children: [
+                _Bar(title: title),
+                const Spacer(),
+                _Sheet(title: title, status: status, orderId: orderId),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _MapAndCard extends StatelessWidget {
-  const new({required this.location, required this.status});
+class _Bar extends StatelessWidget {
+  const new({required this.title});
 
-  final RiderLocation location;
-  final OrderStatus status;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(child: RiderMarkerMap(location: location)),
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: _StatusCard(status: status),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+      child: Row(
+        children: [
+          const BackButton(),
+          Expanded(
+            child: Text(
+              'Live order',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+          const GhAvatar(name: 'Ayesha', size: 36),
+        ],
+      ),
     );
   }
 }
 
-class _StatusCard extends StatelessWidget {
-  const new({required this.status});
+class _Sheet extends StatelessWidget {
+  const new({
+    required this.title,
+    required this.status,
+    required this.orderId,
+  });
 
+  final String title;
   final OrderStatus status;
+  final String orderId;
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: dark ? AppColors.darkSurface : AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.card),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: const [AppShadow.floating],
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
-                  Icon(
-                    GhIcons.moped,
-                    color: dark ? AppColors.darkPrimary : AppColors.primary,
-                  ),
+                  const Icon(GhIcons.circle, size: 8, color: AppColors.success),
                   const SizedBox(width: 8),
-                  Text(
-                    orderStatusLabel(status),
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Expanded(
+                    child: Text(
+                      orderStatusLabel(status),
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
                   ),
+                  Text(orderId, style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
-              const SizedBox(height: 12),
-              _Timeline(status: status),
+              const SizedBox(height: 8),
+              Text(
+                _headline(status),
+                style: Theme.of(context).textTheme.displaySmall,
+              ),
+              Text(
+                _detail(status, title),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              _Stepper(status: status),
+              const SizedBox(height: 16),
+              const _Rider(),
             ],
           ),
         ),
@@ -106,18 +134,19 @@ class _StatusCard extends StatelessWidget {
   }
 }
 
-class _Timeline extends StatelessWidget {
+class _Stepper extends StatelessWidget {
   const new({required this.status});
 
   final OrderStatus status;
 
   @override
   Widget build(BuildContext context) {
+    const labels = ['Placed', 'Accepted', 'Picked up', 'Delivered'];
     final reached = _reached(status);
-    return Column(
+    return Row(
       children: [
-        for (final step in _steps)
-          _Step(label: step, done: _steps.indexOf(step) <= reached),
+        for (var i = 0; i < labels.length; i++)
+          Expanded(child: _Step(label: labels[i], done: i <= reached)),
       ],
     );
   }
@@ -131,35 +160,77 @@ class _Step extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final color = done
-        ? (dark ? AppColors.darkPrimary : AppColors.primary)
-        : (dark ? AppColors.darkTextMuted : AppColors.textMuted);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Icon(
-            done
-                ? GhIcons.checkFill
-                : GhIcons.circle,
-            size: 14,
-            color: color,
-          ),
-          const SizedBox(width: 8),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
+    final color = done ? AppColors.primary : AppColors.line;
+    return Column(
+      children: [
+        Icon(
+          done ? GhIcons.checkFill : GhIcons.circle,
+          size: 16,
+          color: color,
+        ),
+        const SizedBox(height: 4),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ],
     );
   }
 }
 
-const List<String> _steps = [
-  'Order placed',
-  'Rider accepted',
-  'On the way',
-  'Delivered',
-];
+class _Rider extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const GhAvatar(name: 'Tariq Mahmood', online: true),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tariq Mahmood',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              Text(
+                'Honda 125 · 4.9',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          onPressed: () => _sheet(context, 'Message Tariq. This is a preview.'),
+          icon: const Icon(GhIcons.chatCircle),
+        ),
+        IconButton(
+          onPressed: () => _sheet(context, 'Calling Tariq. This is a preview.'),
+          icon: const Icon(GhIcons.phone),
+        ),
+      ],
+    );
+  }
+}
+
+String _headline(OrderStatus status) {
+  return switch (status) {
+    Placed() => 'Soon',
+    Accepted() => '8 min',
+    PickedUp() => '12 min',
+    Delivered() => 'Done',
+    Cancelled() => 'Stopped',
+  };
+}
+
+String _detail(OrderStatus status, String title) {
+  return switch (status) {
+    Placed() => 'We are matching $title with a rider',
+    Accepted() => 'Rider is heading to $title',
+    PickedUp() => 'Estimated at your door by 2:45 PM',
+    Delivered() => '$title has arrived',
+    Cancelled() => 'This order was cancelled',
+  };
+}
 
 int _reached(OrderStatus status) {
   return switch (status) {
@@ -169,4 +240,18 @@ int _reached(OrderStatus status) {
     Delivered() => 3,
     Cancelled() => 0,
   };
+}
+
+void _sheet(BuildContext context, String message) {
+  unawaited(
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          child: Text(message),
+        );
+      },
+    ),
+  );
 }
