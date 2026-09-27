@@ -1,5 +1,6 @@
 import 'package:attock_xpress/core/errors/failure.dart';
 import 'package:attock_xpress/core/widgets/failure_view.dart';
+import 'package:attock_xpress/core/widgets/gh_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,7 +27,7 @@ class AsyncValueView<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return value.when(
       data: data,
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const GhSkeletonList(),
       error: (error, _) => FailureView(
         failure: failureFrom(error),
         onRetry: onRetry,

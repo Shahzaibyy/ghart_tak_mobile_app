@@ -3,6 +3,8 @@ import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/core/network/dio_exception_mapper.dart';
 import 'package:attock_xpress/features/auth/data/auth_session_store.dart';
 import 'package:attock_xpress/features/auth/data/datasources/auth_remote_data_source.dart';
+import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
+import 'package:attock_xpress/features/auth/domain/entities/app_user.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
 import 'package:attock_xpress/features/auth/domain/repositories/auth_repository.dart';
 import 'package:dio/dio.dart';
@@ -54,6 +56,11 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Result<AuthSession>> enterPreview(AppRole role) async {
+    return Success(_previewSession(role));
+  }
+
+  @override
   Future<Result<Nothing>> logout() async {
     try {
       await _sessions.clear();
@@ -62,4 +69,23 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Err(AuthFailure());
     }
   }
+}
+
+AuthSession _previewSession(AppRole role) {
+  return switch (role) {
+    CustomerRole() => const AuthSession(
+      user: AppUser(
+        id: 'preview-customer',
+        role: CustomerRole(),
+        name: 'Ayesha',
+      ),
+    ),
+    RiderRole() => const AuthSession(
+      user: AppUser(
+        id: 'preview-rider',
+        role: RiderRole(),
+        name: 'Hamza',
+      ),
+    ),
+  };
 }

@@ -1,3 +1,4 @@
+import 'package:attock_xpress/core/widgets/gh_button.dart';
 import 'package:flutter/material.dart';
 
 /// Six-digit OTP form. The phone number is not shown.
@@ -30,7 +31,7 @@ class OtpForm extends StatelessWidget {
           decoration: const InputDecoration(labelText: 'Code'),
         ),
         const SizedBox(height: 16),
-        FilledButton(onPressed: onSubmit, child: const Text('Continue')),
+        GhButton(label: 'Continue', onPressed: onSubmit),
       ],
     );
   }

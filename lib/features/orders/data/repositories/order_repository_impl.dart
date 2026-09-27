@@ -3,6 +3,8 @@ import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/core/network/dio_exception_mapper.dart';
 import 'package:attock_xpress/features/orders/data/datasources/order_remote_data_source.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order.dart';
+import 'package:attock_xpress/features/orders/domain/entities/order_draft.dart';
+import 'package:attock_xpress/features/orders/domain/entities/order_status.dart';
 import 'package:attock_xpress/features/orders/domain/repositories/order_repository.dart';
 import 'package:dio/dio.dart';
 
@@ -22,6 +24,25 @@ class OrderRepositoryImpl implements OrderRepository {
       return Err(mapDioException(error));
     } on FormatException {
       return const Err(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Result<Order>> placeOrder(OrderDraft draft) async {
+    try {
+      await _remote.placeOrder(draft);
+      return Success(
+        Order(
+          id: 'pending',
+          title: draft.title,
+          type: draft.type,
+          status: const Placed(),
+          deliveryFee: draft.deliveryFee.toDouble(),
+          photoUrl: draft.photoUrl,
+        ),
+      );
+    } on DioException catch (error) {
+      return Err(mapDioException(error));
     }
   }
 }

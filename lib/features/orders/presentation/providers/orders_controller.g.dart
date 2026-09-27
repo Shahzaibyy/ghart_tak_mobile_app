@@ -53,7 +53,7 @@ final class OrderRepositoryProvider
   }
 }
 
-String _$orderRepositoryHash() => r'39db4341cc26de36acf1a84fc46996a04801f123';
+String _$orderRepositoryHash() => r'96f91abf0200ccc7ad21a288585b82bc427a962e';
 
 /// List-orders use case.
 

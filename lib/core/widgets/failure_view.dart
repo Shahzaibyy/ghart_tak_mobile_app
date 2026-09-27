@@ -1,4 +1,5 @@
 import 'package:attock_xpress/core/errors/failure.dart';
+import 'package:attock_xpress/core/widgets/gh_button.dart';
 import 'package:flutter/material.dart';
 
 /// Non-throwing error surface. Switches on [Failure] subtypes.
@@ -26,12 +27,16 @@ class FailureView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            Text(failure.message, textAlign: TextAlign.center),
+            Text(
+              failure.message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
-              FilledButton(onPressed: onRetry, child: const Text('Try again')),
+              GhButton(label: 'Try again', onPressed: onRetry),
             ],
           ],
         ),

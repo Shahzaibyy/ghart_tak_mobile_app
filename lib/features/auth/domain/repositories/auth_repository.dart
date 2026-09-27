@@ -1,4 +1,5 @@
 import 'package:attock_xpress/core/errors/result.dart';
+import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
 
 /// Auth operations available to use cases.
@@ -17,4 +18,7 @@ abstract interface class AuthRepository {
 
   /// Clears the stored session.
   Future<Result<Nothing>> logout();
+
+  /// Opens a local preview session. Tokens are not stored.
+  Future<Result<AuthSession>> enterPreview(AppRole role);
 }

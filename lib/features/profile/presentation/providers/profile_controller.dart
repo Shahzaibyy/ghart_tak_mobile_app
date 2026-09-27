@@ -1,7 +1,5 @@
 import 'package:attock_xpress/core/errors/result.dart';
-import 'package:attock_xpress/core/network/network_providers.dart';
-import 'package:attock_xpress/features/profile/data/datasources/profile_remote_data_source.dart';
-import 'package:attock_xpress/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:attock_xpress/features/profile/data/sample_profile.dart';
 import 'package:attock_xpress/features/profile/domain/entities/user_profile.dart';
 import 'package:attock_xpress/features/profile/domain/repositories/profile_repository.dart';
 import 'package:attock_xpress/features/profile/domain/usecases/read_profile.dart';
@@ -12,9 +10,7 @@ part 'profile_controller.g.dart';
 /// Profile repository.
 @Riverpod(keepAlive: true)
 ProfileRepository profileRepository(Ref ref) {
-  return ProfileRepositoryImpl(
-    ProfileRemoteDataSource(ref.watch(dioProvider)),
-  );
+  return const SampleProfileRepository();
 }
 
 /// Profile use case.

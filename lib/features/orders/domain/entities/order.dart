@@ -9,11 +9,15 @@ class Order {
     required this.type,
     required this.status,
     required this.deliveryFee,
+    this.title = 'Order',
     this.photoUrl,
   });
 
   /// Order id.
   final String id;
+
+  /// Merchant or task name.
+  final String title;
 
   /// Food, mart, courier, or errand.
   final OrderType type;

@@ -2,6 +2,7 @@ import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/core/network/dio_exception_mapper.dart';
 import 'package:attock_xpress/features/rider_dashboard/data/datasources/rider_remote_data_source.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/entities/queued_action.dart';
+import 'package:attock_xpress/features/rider_dashboard/domain/entities/rider_task.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/repositories/rider_repository.dart';
 import 'package:dio/dio.dart';
 
@@ -24,6 +25,9 @@ class RiderRepositoryImpl implements RiderRepository {
   }) {
     return _guard(() => _remote.confirmDelivery(taskId: taskId, otp: otp));
   }
+
+  @override
+  Future<Result<RiderTask?>> peekTask() async => const Success(null);
 
   @override
   Future<Result<Nothing>> replay(QueuedAction action) {

@@ -153,7 +153,7 @@ final class RiderRepositoryProvider
   }
 }
 
-String _$riderRepositoryHash() => r'cdbef8ad198aab73ffa4bfc8b7d99a412e1d1fbb';
+String _$riderRepositoryHash() => r'e7cda1fc823a143e86292fbd66804e1d8977f39c';
 
 /// Availability use case.
 
@@ -232,7 +232,7 @@ final class RiderDashboardControllerProvider
 }
 
 String _$riderDashboardControllerHash() =>
-    r'4315d5f81f55471cf8c6b55284a657d1845163b5';
+    r'dabc8e874f66003760d5847726f2ec5c07f6de5e';
 
 /// Rider home: availability plus the offline queue.
 

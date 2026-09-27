@@ -1,5 +1,7 @@
 import 'package:attock_xpress/app.dart';
 import 'package:attock_xpress/core/errors/result.dart';
+import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
+import 'package:attock_xpress/features/auth/domain/entities/app_user.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
 import 'package:attock_xpress/features/auth/domain/repositories/auth_repository.dart';
 import 'package:attock_xpress/features/auth/presentation/providers/auth_providers.dart';
@@ -54,5 +56,39 @@ void main() {
 
     expect(find.text('Check your details'), findsOneWidget);
     verifyNever(() => repository.requestOtp(any()));
+  });
+
+  testWidgets('preview as customer opens the home feed', (tester) async {
+    final repository = _MockAuthRepository();
+    when(repository.currentSession).thenAnswer(
+      (_) async => const Success<AuthSession?>(null),
+    );
+    when(() => repository.enterPreview(const CustomerRole())).thenAnswer(
+      (_) async => const Success(
+        AuthSession(
+          user: AppUser(
+            id: 'preview-customer',
+            role: CustomerRole(),
+            name: 'Ayesha',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: const GharTakApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Preview as customer'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('What do you need?'), findsOneWidget);
+    expect(find.text('Tandoor House'), findsWidgets);
   });
 }

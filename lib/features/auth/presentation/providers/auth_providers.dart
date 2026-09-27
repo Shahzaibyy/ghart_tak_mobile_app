@@ -4,6 +4,7 @@ import 'package:attock_xpress/features/auth/data/auth_session_store.dart';
 import 'package:attock_xpress/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:attock_xpress/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:attock_xpress/features/auth/domain/repositories/auth_repository.dart';
+import 'package:attock_xpress/features/auth/domain/usecases/enter_preview.dart';
 import 'package:attock_xpress/features/auth/domain/usecases/logout.dart';
 import 'package:attock_xpress/features/auth/domain/usecases/request_otp.dart';
 import 'package:attock_xpress/features/auth/domain/usecases/verify_otp.dart';
@@ -36,4 +37,10 @@ VerifyOtp verifyOtp(Ref ref) {
 @riverpod
 Logout logout(Ref ref) {
   return Logout(ref.watch(authRepositoryProvider));
+}
+
+/// Local preview use case.
+@riverpod
+EnterPreview enterPreview(Ref ref) {
+  return EnterPreview(ref.watch(authRepositoryProvider));
 }

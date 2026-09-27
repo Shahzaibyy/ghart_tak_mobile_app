@@ -190,3 +190,49 @@ final class LogoutProvider extends $FunctionalProvider<Logout, Logout, Logout>
 }
 
 String _$logoutHash() => r'6e0d1f84f5c65cb0e2a5f37a5c5920d4baa2cddf';
+
+/// Local preview use case.
+
+@ProviderFor(enterPreview)
+final enterPreviewProvider = EnterPreviewProvider._();
+
+/// Local preview use case.
+
+final class EnterPreviewProvider
+    extends $FunctionalProvider<EnterPreview, EnterPreview, EnterPreview>
+    with $Provider<EnterPreview> {
+  /// Local preview use case.
+  EnterPreviewProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'enterPreviewProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$enterPreviewHash();
+
+  @$internal
+  @override
+  $ProviderElement<EnterPreview> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  EnterPreview create(Ref ref) {
+    return enterPreview(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(EnterPreview value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<EnterPreview>(value),
+    );
+  }
+}
+
+String _$enterPreviewHash() => r'39ad98bbc4e8234965f28e16d1650192faba2b08';

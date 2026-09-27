@@ -1,3 +1,5 @@
+import 'package:attock_xpress/core/icons/gh_icons.dart';
+import 'package:attock_xpress/core/utils/money.dart';
 import 'package:attock_xpress/core/widgets/async_value_view.dart';
 import 'package:attock_xpress/features/payments/domain/entities/payment_method.dart';
 import 'package:attock_xpress/features/payments/domain/entities/wallet_balance.dart';
@@ -32,13 +34,17 @@ class _PaymentBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       children: [
+        Text('Wallet', style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 4),
         Text(
-          'Wallet Rs ${balance.amount.toStringAsFixed(0)}',
-          style: Theme.of(context).textTheme.headlineSmall,
+          rupees(balance.amount.round()),
+          style: Theme.of(context).textTheme.displaySmall,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 28),
+        Text('Ways to pay', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 8),
         const _MethodList(),
       ],
     );
@@ -50,12 +56,14 @@ class _MethodList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = Theme.of(context).textTheme.bodySmall?.color;
     return Column(
       children: [
         for (final method in availablePaymentMethods)
           ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(GhIcons.wallet, color: muted),
             title: Text(paymentMethodLabel(method)),
-            leading: const Icon(Icons.payments_outlined),
           ),
       ],
     );

@@ -1,4 +1,5 @@
 import 'package:attock_xpress/core/widgets/async_value_view.dart';
+import 'package:attock_xpress/core/widgets/gh_empty.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order.dart';
 import 'package:attock_xpress/features/orders/presentation/providers/orders_controller.dart';
 import 'package:attock_xpress/features/orders/presentation/widgets/order_tile.dart';
@@ -10,8 +11,8 @@ class OrdersScreen extends ConsumerWidget {
   /// Creates the orders screen.
   const new({required this.onTrack, super.key});
 
-  /// Called with an order id when the customer opens tracking.
-  final ValueChanged<String> onTrack;
+  /// Called when the customer opens tracking.
+  final ValueChanged<Order> onTrack;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,21 +32,22 @@ class _OrderList extends StatelessWidget {
   const new({required this.orders, required this.onTrack});
 
   final List<Order> orders;
-  final ValueChanged<String> onTrack;
+  final ValueChanged<Order> onTrack;
 
   @override
   Widget build(BuildContext context) {
     if (orders.isEmpty) {
-      return const Center(child: Text('No orders yet'));
+      return const GhEmpty(
+        title: 'No orders yet',
+        body: 'When you order, it will show up here.',
+      );
     }
     return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       itemCount: orders.length,
       itemBuilder: (context, index) {
         final order = orders[index];
-        return OrderTile(
-          order: order,
-          onTap: () => onTrack(order.id),
-        );
+        return OrderTile(order: order, onTap: () => onTrack(order));
       },
     );
   }

@@ -2,13 +2,12 @@ import 'dart:async';
 
 import 'package:attock_xpress/core/errors/failure.dart';
 import 'package:attock_xpress/core/errors/result.dart';
-import 'package:attock_xpress/core/network/network_providers.dart';
 import 'package:attock_xpress/core/storage/hive_boxes.dart';
-import 'package:attock_xpress/features/rider_dashboard/data/datasources/rider_remote_data_source.dart';
 import 'package:attock_xpress/features/rider_dashboard/data/offline_action_queue.dart';
-import 'package:attock_xpress/features/rider_dashboard/data/repositories/rider_repository_impl.dart';
+import 'package:attock_xpress/features/rider_dashboard/data/sample_rider.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/entities/queued_action.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/entities/rider_dashboard_state.dart';
+import 'package:attock_xpress/features/rider_dashboard/domain/entities/rider_task.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/repositories/rider_repository.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/usecases/set_availability.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -32,7 +31,7 @@ OfflineActionQueue offlineActionQueue(Ref ref) {
 /// Rider repository.
 @Riverpod(keepAlive: true)
 RiderRepository riderRepository(Ref ref) {
-  return RiderRepositoryImpl(RiderRemoteDataSource(ref.watch(dioProvider)));
+  return const SampleRiderRepository();
 }
 
 /// Availability use case.
@@ -44,8 +43,11 @@ SetAvailability setAvailability(Ref ref) {
 /// Rider home: availability plus the offline queue.
 @riverpod
 class RiderDashboardController extends _$RiderDashboardController {
+  Timer? _timer;
+
   @override
   Future<RiderDashboardState> build() async {
+    ref.onDispose(() => _timer?.cancel());
     ref.listen(connectivityResultsProvider, (previous, next) {
       final results = next.value;
       if (results == null) return;
@@ -53,14 +55,20 @@ class RiderDashboardController extends _$RiderDashboardController {
       unawaited(_flush());
     });
     final pending = await ref.watch(offlineActionQueueProvider).pendingCount();
-    return RiderDashboardState(isOnline: false, pendingSyncCount: pending);
+    return RiderDashboardState(isOnline: true, pendingSyncCount: pending);
   }
 
   /// Optimistically toggles availability and queues the write when offline.
   Future<void> setOnline({required bool isOnline}) async {
     final current = state.value;
     if (current == null) return;
-    state = AsyncData(current.copyWith(isOnline: isOnline));
+    if (!isOnline) _timer?.cancel();
+    state = AsyncData(
+      current.copyWith(
+        isOnline: isOnline,
+        phase: isOnline ? current.phase : const Waiting(),
+      ),
+    );
     final result = await ref.read(setAvailabilityProvider).call(
       isOnline: isOnline,
     );
@@ -69,6 +77,134 @@ class RiderDashboardController extends _$RiderDashboardController {
       current,
       ToggleOnlineAction(isOnline: isOnline),
     );
+  }
+
+  /// Starts the countdown for the next nearby request.
+  Future<void> presentOffer() async {
+    final current = state.value;
+    if (current == null || !current.isOnline) return;
+    if (current.phase is! Waiting) return;
+    await _offer();
+  }
+
+  /// Moves the trip from pickup to the customer.
+  void markPickedUp() {
+    final current = state.value;
+    final phase = current?.phase;
+    if (current == null || phase is! Riding) return;
+    if (phase.leg is! ToPickup) return;
+    state = AsyncData(
+      current.copyWith(phase: Riding(phase.task, leg: const ToDropoff())),
+    );
+  }
+
+  /// Accepts the offer on screen.
+  void accept() {
+    final current = state.value;
+    final phase = current?.phase;
+    if (current == null || phase is! Offering) return;
+    _timer?.cancel();
+    state = AsyncData(current.copyWith(phase: Riding(phase.task)));
+  }
+
+  /// Declines the offer and stays online.
+  void decline() {
+    _timer?.cancel();
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(phase: const Waiting()));
+  }
+
+  /// Confirms the trip with the customer's code.
+  Future<void> confirm(String otp) async {
+    final current = state.value;
+    final phase = current?.phase;
+    if (current == null || phase is! Riding) return;
+    if (phase.leg is! ToDropoff) return;
+    if (otp.trim().length != 6) {
+      _rejectCode(current);
+      return;
+    }
+    await _finish(current, phase.task, otp.trim());
+  }
+
+  Future<void> _offer() async {
+    final result = await ref.read(riderRepositoryProvider).peekTask();
+    final task = switch (result) {
+      Success(:final value) => value,
+      Err() => null,
+    };
+    if (task == null) return;
+    _countDown(task, 30);
+  }
+
+  void _countDown(RiderTask task, int seconds) {
+    _timer?.cancel();
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncData(
+      current.copyWith(
+        phase: Offering(task: task, secondsLeft: seconds),
+      ),
+    );
+    _timer = Timer.periodic(const Duration(seconds: 1), _tick);
+  }
+
+  void _tick(Timer timer) {
+    final latest = state.value;
+    final phase = latest?.phase;
+    if (latest == null || phase is! Offering) {
+      timer.cancel();
+      return;
+    }
+    _advance(latest, phase, timer);
+  }
+
+  void _advance(RiderDashboardState latest, Offering phase, Timer timer) {
+    if (phase.secondsLeft <= 1) {
+      timer.cancel();
+      state = AsyncData(latest.copyWith(phase: OfferExpired(phase.task)));
+      return;
+    }
+    state = AsyncData(
+      latest.copyWith(
+        phase: Offering(
+          task: phase.task,
+          secondsLeft: phase.secondsLeft - 1,
+        ),
+      ),
+    );
+  }
+
+  void _rejectCode(RiderDashboardState current) {
+    state = AsyncError(
+      const ValidationFailure('Enter the 6-digit code'),
+      StackTrace.current,
+    );
+    state = AsyncData(current);
+  }
+
+  Future<void> _finish(
+    RiderDashboardState current,
+    RiderTask task,
+    String otp,
+  ) async {
+    final result = await ref.read(riderRepositoryProvider).confirmDelivery(
+      taskId: task.id,
+      otp: otp,
+    );
+    switch (result) {
+      case Success():
+        state = AsyncData(current.copyWith(phase: const Waiting()));
+      case Err(failure: NetworkFailure()):
+        await _keepLocally(
+          current,
+          DeliveryConfirmationAction(taskId: task.id, otp: otp),
+        );
+      case Err(:final failure):
+        state = AsyncError(failure, StackTrace.current);
+        state = AsyncData(current);
+    }
   }
 
   Future<void> _afterWrite(
