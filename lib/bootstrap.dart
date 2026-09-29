@@ -10,5 +10,5 @@ Future<void> bootstrap() async {
   await Hive.initFlutter();
   await Hive.openBox<String>(HiveBoxes.pendingActions);
   await Hive.openBox<String>(HiveBoxes.geocode);
-  runApp(const ProviderScope(child: GharTakApp()));
+  runApp(const ProviderScope(child: BhookLagiApp()));
 }

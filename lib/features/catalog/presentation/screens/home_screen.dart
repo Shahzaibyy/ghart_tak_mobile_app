@@ -284,7 +284,7 @@ class _Explore extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'EXPLORE GHARTAK',
+                'EXPLORE BHOOK LAGI',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -397,7 +397,7 @@ class _Promo extends StatelessWidget {
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                   Text(
-                    'Apply GHARTAKFREE at checkout',
+                    'Apply BHOOKFREE at checkout',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -456,7 +456,7 @@ class _Promise extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('GharTak neighbourhood promise'),
+                  Text('Bhook Lagi neighbourhood promise'),
                   Text(
                     'Fair rider pay, short routes, no shelf markup',
                   ),

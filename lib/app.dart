@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Root widget. Session state chooses the customer or rider home.
-class GharTakApp extends ConsumerWidget {
+class BhookLagiApp extends ConsumerWidget {
   /// Creates the app.
   const new({super.key});
 
@@ -22,7 +22,7 @@ class GharTakApp extends ConsumerWidget {
     final session = ref.watch(authControllerProvider);
     final mode = ref.watch(themeControllerProvider);
     return MaterialApp(
-      title: 'GharTak',
+      title: 'Bhook Lagi',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: mode,
@@ -51,7 +51,7 @@ class _SignedInHome extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = session;
     if (current == null) return const PhoneLoginScreen();
-    final name = current.user.name ?? 'GharTak';
+    final name = current.user.name ?? 'Bhook Lagi';
     return switch (current.user.role) {
       CustomerRole() => CustomerShell(displayName: name),
       RiderRole() => RiderShell(displayName: name, onLogout: onLogout),

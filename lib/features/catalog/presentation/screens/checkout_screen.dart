@@ -90,7 +90,7 @@ class _Review extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'GharTak safe guarantee · ${rupees(cart.total)}',
+          'Bhook Lagi safe guarantee · ${rupees(cart.total)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),

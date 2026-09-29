@@ -24,12 +24,12 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(repository),
         ],
-        child: const GharTakApp(),
+        child: const BhookLagiApp(),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('GharTak'), findsOneWidget);
+    expect(find.bySemanticsLabel('Bhook Lagi'), findsOneWidget);
     expect(find.text('Send code'), findsOneWidget);
   });
 
@@ -46,7 +46,7 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(repository),
         ],
-        child: const GharTakApp(),
+        child: const BhookLagiApp(),
       ),
     );
     await tester.pumpAndSettle();
@@ -80,7 +80,7 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(repository),
         ],
-        child: const GharTakApp(),
+        child: const BhookLagiApp(),
       ),
     );
     await tester.pumpAndSettle();

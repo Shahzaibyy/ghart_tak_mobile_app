@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// GharTak color tokens. Terracotta is the only brand color.
+/// Bhook Lagi color tokens. Terracotta is the only brand color.
 abstract final class AppColors {
   static const background = Color(0xFFFAF8F5);
   static const surface = Color(0xFFFFFFFF);

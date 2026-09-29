@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/widgets/async_value_view.dart';
+import 'package:attock_xpress/core/widgets/brand_logo.dart';
 import 'package:attock_xpress/core/widgets/gh_button.dart';
 import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
 import 'package:attock_xpress/features/auth/presentation/providers/auth_controller.dart';
@@ -91,9 +92,10 @@ class _PhoneForm extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
       children: [
-        Text('GharTak', style: Theme.of(context).textTheme.displaySmall),
-        const SizedBox(height: 8),
-        Text('Har cheez, ghar tak.', style: muted),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: BrandLogo(),
+        ),
         const SizedBox(height: 32),
         TextField(
           controller: controller,

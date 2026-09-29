@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Background: Charcoal (#1C1917) -->
+  <rect x="0" y="0" width="100" height="100" fill="#1C1917"/>
+
+  <!--
+    MATHEMATICAL CONSTRUCTION & GOLDEN RATIO PROPORTIONS (1 : 1.618):
+    1. Overall Monogram "B" Bounding Box:
+       - Total Height: 60 units (Y: 20 to 80)
+       - Total Width: 37.08 units (X: 31.46 to 68.54)
+       - Stem Center X: 36.46, Stroke Width: 10 units
+       - Vertical Stem Line: Center at X=36.46, Y from 25 to 75.
+
+    2. Golden Ratio Height Split:
+       - Total Enclosed Height = 60
+       - Top Bow Outer Diameter  = 60 / 2.618 = 22.92 units (Radius R1 = 11.46)
+       - Bottom Bow Outer Diameter = 22.92 * 1.618 = 37.08 units (Radius R2 = 18.54)
+       - Verification: 22.92 + 37.08 = 60.00 units. Ratio R2 / R1 = 1.618 (Golden Ratio).
+
+    3. Y-Coordinates for Bow Junctions & Centers:
+       - Top Bow Center:    (36.46, 31.46) -> Y-range: 20.00 to 42.92
+       - Bottom Bow Center: (36.46, 61.46) -> Y-range: 42.92 to 80.00
+       - Tangent Junction Y: 42.92
+
+    4. Location Pin in Top Counter (Cream #FAF8F5):
+       - Outer Top Counter Radius: 11.46 - 5 (half stroke) = 6.46
+       - Pin Head Center: (43.00, 29.00), Radius: 2.2 units
+       - Pin Tip Point: (43.00, 34.50)
+       - Inner Cutout Hole Circle Center: (43.00, 29.00), Radius: 0.9 units
+  -->
+
+  <!-- Letter "B" Main Geometry (Terracotta #D96B41) -->
+  <!-- 
+    Path Details:
+    - Vertical stem left edge at X=31.46, right edge at X=41.46, Y from 20 to 80 with rounded corners.
+    - Outer Top Semicircle: Arc from (36.46, 20.00) to (36.46, 42.92) with R = 11.46
+    - Outer Bottom Semicircle: Arc from (36.46, 42.92) to (36.46, 80.00) with R = 18.54
+  -->
+  <path fill="#D96B41" fill-rule="evenodd" d="
+    M 36.46,20.00
+    A 11.46,11.46 0 0,1 47.92,31.46
+    A 11.46,11.46 0 0,1 36.46,42.92
+    A 18.54,18.54 0 0,1 55.00,61.46
+    A 18.54,18.54 0 0,1 36.46,80.00
+    L 31.46,80.00
+    A 5.00,5.00 0 0,1 26.46,75.00
+    L 26.46,25.00
+    A 5.00,5.00 0 0,1 31.46,20.00
+    Z
+    
+    /* Top Counter Cutout: Inner radius r1 = 11.46 - 8.0 = 3.46, Center (36.46, 31.46) */
+    M 36.46,28.00
+    A 3.46,3.46 0 0,0 36.46,34.92
+    L 36.46,28.00
+    Z
+
+    /* Bottom Counter Cutout: Inner radius r2 = 18.54 - 8.0 = 10.54, Center (36.46, 61.46) */
+    M 36.46,50.92
+    A 10.54,10.54 0 0,1 36.46,72.00
+    L 36.46,50.92
+    Z
+  "/>
+
+  <!-- Location Pin Element inside Top Counter (Cream #FAF8F5) -->
+  <!-- 
+    Pin Geometry:
+    - Top Circle: Center (42.00, 29.50), Radius = 2.50
+    - Pointed Tip: Tangent lines converging down to (42.00, 35.50)
+  -->
+  <path fill="#FAF8F5" d="
+    M 39.50,29.50
+    A 2.50,2.50 0 0,1 44.50,29.50
+    C 44.50,31.20 42.00,35.50 42.00,35.50
+    C 42.00,35.50 39.50,31.20 39.50,29.50
+    Z
+  "/>
+
+  <!-- Location Pin Inner Hole Cutout (Charcoal #1C1917) -->
+  <!-- Circle: Center (42.00, 29.50), Radius = 0.9 units (Ratio: ~1 : 2.78 relative to pin head radius) -->
+  <circle cx="42.00" cy="29.50" r="0.90" fill="#1C1917"/>
+</svg>
