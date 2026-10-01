@@ -50,6 +50,9 @@ const _slides = [
   ),
 ];
 
+const _slideHold = Duration(seconds: 3);
+const _slideFade = Duration(milliseconds: 380);
+
 /// Animated Gen Z welcome. One Get started button.
 class WelcomeScreen extends ConsumerStatefulWidget {
   /// Creates the welcome screen.
@@ -61,14 +64,15 @@ class WelcomeScreen extends ConsumerStatefulWidget {
 
 class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   var _index = 0;
+  var _touching = false;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() => _index = (_index + 1) % _slides.length);
+      _syncAutoplay();
     });
   }
 
@@ -76,6 +80,42 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  bool get _reducedMotion {
+    return MediaQuery.disableAnimationsOf(context);
+  }
+
+  void _syncAutoplay() {
+    _timer?.cancel();
+    if (_reducedMotion || _touching) return;
+    _timer = Timer.periodic(_slideHold, (_) {
+      if (!mounted || _touching) return;
+      _goTo((_index + 1) % _slides.length);
+    });
+  }
+
+  void _goTo(int index) {
+    if (_index == index) return;
+    setState(() => _index = index);
+  }
+
+  void _next() => _goTo((_index + 1) % _slides.length);
+
+  void _previous() {
+    _goTo((_index - 1 + _slides.length) % _slides.length);
+  }
+
+  void _onTouchStart() {
+    if (_reducedMotion) return;
+    setState(() => _touching = true);
+    _timer?.cancel();
+  }
+
+  void _onTouchEnd() {
+    if (_reducedMotion) return;
+    setState(() => _touching = false);
+    _syncAutoplay();
   }
 
   @override
@@ -90,68 +130,105 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     final btnFill = invert ? AppColors.background : AppColors.primary;
     final btnInk = invert ? AppColors.error : AppColors.surface;
 
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 28, 22, 22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Bhook Lagi',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: ink,
-                  fontWeight: FontWeight.w600,
+    return AnimatedContainer(
+      duration: _reducedMotion ? Duration.zero : _slideFade,
+      color: bg,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 28, 22, 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedDefaultTextStyle(
+                  duration: _reducedMotion ? Duration.zero : _slideFade,
+                  style:
+                      Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: ink,
+                        fontWeight: FontWeight.w600,
+                      ) ??
+                      TextStyle(color: ink),
+                  child: const Text('Bhook Lagi'),
                 ),
-              ),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 420),
-                  child: _HeroCopy(
-                    key: ValueKey(_index),
-                    slide: slide,
-                    ink: ink,
-                    muted: muted,
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (_) => _onTouchStart(),
+                    onTapUp: (_) {
+                      _next();
+                      _onTouchEnd();
+                    },
+                    onTapCancel: _onTouchEnd,
+                    onHorizontalDragStart: (_) => _onTouchStart(),
+                    onHorizontalDragEnd: (details) {
+                      final dx = details.primaryVelocity ?? 0;
+                      if (dx < -200) {
+                        _next();
+                      } else if (dx > 200) {
+                        _previous();
+                      }
+                      _onTouchEnd();
+                    },
+                    child: AnimatedSwitcher(
+                      duration: _reducedMotion
+                          ? Duration.zero
+                          : _slideFade,
+                      child: _HeroCopy(
+                        key: ValueKey(_index),
+                        slide: slide,
+                        ink: ink,
+                        muted: muted,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              _Dots(index: _index, invert: invert),
-              const SizedBox(height: 16),
-              _WelcomeButton(
-                fill: btnFill,
-                ink: btnInk,
-                onPressed: () {
-                  ref.read(onboardingControllerProvider.notifier).start();
-                },
-              ),
-              TextButton(
-                onPressed: () {
-                  unawaited(
-                    ref
-                        .read(onboardingControllerProvider.notifier)
-                        .skipToHome(role: OnboardingRole.customer),
-                  );
-                },
-                child: Text(
-                  'Skip to customer home',
-                  style: TextStyle(color: invert ? ink : AppColors.primary),
+                _Dots(index: _index, invert: invert),
+                const SizedBox(height: 16),
+                AnimatedContainer(
+                  duration: _reducedMotion ? Duration.zero : _slideFade,
+                  child: _WelcomeButton(
+                    fill: btnFill,
+                    ink: btnInk,
+                    onPressed: () {
+                      ref
+                          .read(onboardingControllerProvider.notifier)
+                          .start();
+                    },
+                  ),
                 ),
-              ),
-              TextButton(
-                onPressed: () {
-                  unawaited(
-                    ref
-                        .read(onboardingControllerProvider.notifier)
-                        .skipToHome(role: OnboardingRole.rider),
-                  );
-                },
-                child: Text(
-                  'Skip to rider home',
-                  style: TextStyle(color: invert ? ink : AppColors.primary),
+                TextButton(
+                  onPressed: () {
+                    unawaited(
+                      ref
+                          .read(onboardingControllerProvider.notifier)
+                          .skipToHome(role: OnboardingRole.customer),
+                    );
+                  },
+                  child: Text(
+                    'Skip to customer home',
+                    style: TextStyle(
+                      color: invert ? ink : AppColors.primary,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                TextButton(
+                  onPressed: () {
+                    unawaited(
+                      ref
+                          .read(onboardingControllerProvider.notifier)
+                          .skipToHome(role: OnboardingRole.rider),
+                    );
+                  },
+                  child: Text(
+                    'Skip to rider home',
+                    style: TextStyle(
+                      color: invert ? ink : AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -200,7 +277,10 @@ class _HeroCopy extends StatelessWidget {
           Transform.rotate(
             angle: -0.05,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 4,
+              ),
               decoration: BoxDecoration(
                 border: Border.all(color: ink, width: 1.5),
                 borderRadius: BorderRadius.circular(10),
@@ -261,7 +341,6 @@ class _WelcomeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Local fill so the invert slide can flip the primary button.
     return Material(
       color: fill,
       borderRadius: BorderRadius.circular(14),

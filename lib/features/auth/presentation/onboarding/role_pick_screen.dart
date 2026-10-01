@@ -33,7 +33,7 @@ class _RolePickScreenState extends ConsumerState<RolePickScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Ek choose karo. Baad mein dono bhi kar sakte ho.',
+          'Pick one. You can switch later.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 28),
@@ -60,7 +60,7 @@ class _RolePickScreenState extends ConsumerState<RolePickScreen> {
         ),
         const SizedBox(height: 32),
         OnboardingActions(
-          primaryLabel: 'Aage chalo',
+          primaryLabel: 'Continue',
           onPrimary: () {
             if (_role == null) {
               flow.pickRole(OnboardingRole.customer);

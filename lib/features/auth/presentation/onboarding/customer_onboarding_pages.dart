@@ -29,15 +29,52 @@ class _CustomerOnboardingPagesState
   final _otp = TextEditingController();
   final _name = TextEditingController();
   final _place = TextEditingController();
-  var _label = 'Ghar';
+  var _label = 'Home';
+  String? _phoneError;
+  String? _otpError;
+  String? _nameError;
+  var _resendSeconds = 42;
+  Timer? _resendTimer;
+
+  @override
+  void didUpdateWidget(covariant CustomerOnboardingPages oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.step is CustomerOtpStep && oldWidget.step is! CustomerOtpStep) {
+      _startResend();
+    }
+  }
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _phone.dispose();
     _otp.dispose();
     _name.dispose();
     _place.dispose();
     super.dispose();
+  }
+
+  void _startResend() {
+    _resendTimer?.cancel();
+    setState(() => _resendSeconds = 42);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendSeconds <= 1) {
+        timer.cancel();
+        setState(() => _resendSeconds = 0);
+        return;
+      }
+      setState(() => _resendSeconds -= 1);
+    });
+  }
+
+  bool _isValidPhone(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    final local = digits.startsWith('92') ? digits.substring(2) : digits;
+    return RegExp(r'^3\d{9}$').hasMatch(local);
   }
 
   @override
@@ -66,12 +103,13 @@ class _CustomerOnboardingPagesState
         ),
         const SizedBox(height: 8),
         Text(
-          'Code WhatsApp pe bhejte hain.',
+          "We'll send a 6-digit code on WhatsApp.",
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
         OnboardingField(
           controller: _phone,
+          label: 'Mobile number',
           hint: '300 1234567',
           focused: true,
           keyboardType: TextInputType.phone,
@@ -82,13 +120,31 @@ class _CustomerOnboardingPagesState
             ),
           ),
         ),
+        if (_phoneError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _phoneError!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.error,
+            ),
+          ),
+        ],
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Code bhejo',
-          onPrimary: () => flow.customerSendCode(_phone.text),
-          secondaryLabel: 'Google se aao',
+          primaryLabel: 'Send code',
+          onPrimary: () {
+            if (!_isValidPhone(_phone.text) && _phone.text.trim().isNotEmpty) {
+              setState(() {
+                _phoneError = 'Enter a valid 10-digit mobile number.';
+              });
+              return;
+            }
+            setState(() => _phoneError = null);
+            flow.customerSendCode(_phone.text);
+          },
+          secondaryLabel: 'Continue with Google',
           onSecondary: () => unawaited(flow.skipToHome()),
-          textLabel: 'Email se sign up karo',
+          textLabel: 'Sign up with email',
           onText: () => unawaited(flow.skipToHome()),
         ),
       ],
@@ -108,22 +164,73 @@ class _CustomerOnboardingPagesState
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          '6 digit ka code aaya hoga · $phone',
-          style: Theme.of(context).textTheme.bodyMedium,
+        Text.rich(
+          TextSpan(
+            style: Theme.of(context).textTheme.bodyMedium,
+            children: [
+              TextSpan(text: 'Enter the 6-digit code sent to $phone. '),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.baseline,
+                baseline: TextBaseline.alphabetic,
+                child: GestureDetector(
+                  onTap: flow.back,
+                  child: Text(
+                    'Change number',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 20),
         OtpBoxes(controller: _otp),
+        if (_otpError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _otpError!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.error,
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
-        Text(
-          'Dobara bhejo 0:42',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        if (_resendSeconds > 0)
+          Text(
+            'Resend code in 0:${_resendSeconds.toString().padLeft(2, '0')}',
+            style: Theme.of(context).textTheme.bodySmall,
+          )
+        else
+          TextButton(
+            onPressed: _startResend,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Resend code',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Verify karo',
-          onPrimary: flow.customerVerify,
-          textLabel: 'SMS pe bhejo',
+          primaryLabel: 'Verify',
+          onPrimary: () {
+            final code = _otp.text.trim();
+            if (code.isNotEmpty && code.length != 6) {
+              setState(() {
+                _otpError = 'That code is incorrect. Try again.';
+              });
+              return;
+            }
+            setState(() => _otpError = null);
+            flow.customerVerify();
+          },
+          textLabel: 'Send via SMS instead',
           onText: flow.customerVerify,
         ),
       ],
@@ -145,31 +252,38 @@ class _CustomerOnboardingPagesState
         const SizedBox(height: 20),
         OnboardingField(
           controller: _name,
-          hint: 'Ayesha',
+          label: 'Full name',
+          hint: 'Ayesha Khan',
           focused: true,
         ),
-        const SizedBox(height: 16),
-        Text(
-          'Kahan deliver karna hai?',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w500,
+        if (_nameError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _nameError!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.error,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
+        ],
+        const SizedBox(height: 16),
         OnboardingField(
           controller: _place,
-          hint: 'Attock Road, Fateh Jang',
+          label: 'Delivery address',
+          hint: 'House no., street, area',
         ),
         const SizedBox(height: 12),
         ChoiceChips(
-          options: const ['Ghar', 'Office', 'Gaon'],
+          options: const ['Home', 'Work', 'Other'],
           selected: _label,
           onSelect: (value) => setState(() => _label = value),
         ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Chalo shuru',
-          onPrimary: () => flow.customerSaveProfile(name: _name.text),
+          primaryLabel: 'Save and continue',
+          onPrimary: () {
+            setState(() => _nameError = null);
+            flow.customerSaveProfile(name: _name.text);
+          },
         ),
       ],
     );
@@ -213,7 +327,7 @@ class _CustomerOnboardingPagesState
         ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Home pe jao',
+          primaryLabel: 'Continue',
           onPrimary: () => unawaited(flow.finish()),
         ),
       ],

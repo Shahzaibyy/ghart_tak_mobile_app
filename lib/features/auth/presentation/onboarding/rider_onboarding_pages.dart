@@ -31,11 +31,24 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
   final _plate = TextEditingController();
   final _licence = TextEditingController();
   var _city = 'Fateh Jang';
-  var _vehicle = 'Bike';
+  var _vehicle = 'Motorcycle';
   var _frontDone = true;
+  String? _phoneError;
+  String? _otpError;
+  var _resendSeconds = 38;
+  Timer? _resendTimer;
+
+  @override
+  void didUpdateWidget(covariant RiderOnboardingPages oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.step is RiderOtpStep && oldWidget.step is! RiderOtpStep) {
+      _startResend();
+    }
+  }
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _phone.dispose();
     _otp.dispose();
     _name.dispose();
@@ -43,6 +56,29 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
     _plate.dispose();
     _licence.dispose();
     super.dispose();
+  }
+
+  void _startResend() {
+    _resendTimer?.cancel();
+    setState(() => _resendSeconds = 38);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendSeconds <= 1) {
+        timer.cancel();
+        setState(() => _resendSeconds = 0);
+        return;
+      }
+      setState(() => _resendSeconds -= 1);
+    });
+  }
+
+  bool _isValidPhone(String raw) {
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    final local = digits.startsWith('92') ? digits.substring(2) : digits;
+    return RegExp(r'^3\d{9}$').hasMatch(local);
   }
 
   @override
@@ -74,12 +110,13 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Number aur sheher batao, code WhatsApp pe aaye ga.',
+          "Enter your mobile number. We'll confirm it with a WhatsApp code.",
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
         OnboardingField(
           controller: _phone,
+          label: 'Mobile number',
           hint: '312 7654321',
           focused: true,
           keyboardType: TextInputType.phone,
@@ -90,7 +127,23 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
             ),
           ),
         ),
+        if (_phoneError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _phoneError!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.error,
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
+        Text(
+          'City',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
         ChoiceChips(
           options: const [
             'Fateh Jang',
@@ -103,9 +156,18 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Apply karo',
-          onPrimary: () => flow.riderApply(_phone.text),
-          textLabel: 'Pehle se rider ho? Login',
+          primaryLabel: 'Apply now',
+          onPrimary: () {
+            if (!_isValidPhone(_phone.text) && _phone.text.trim().isNotEmpty) {
+              setState(() {
+                _phoneError = 'Enter a valid 10-digit mobile number.';
+              });
+              return;
+            }
+            setState(() => _phoneError = null);
+            flow.riderApply(_phone.text);
+          },
+          textLabel: 'Already a rider? Log in',
           onText: () => unawaited(
             flow.skipToHome(role: OnboardingRole.rider),
           ),
@@ -129,22 +191,73 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          'Code bheja · $phone',
-          style: Theme.of(context).textTheme.bodyMedium,
+        Text.rich(
+          TextSpan(
+            style: Theme.of(context).textTheme.bodyMedium,
+            children: [
+              TextSpan(text: 'Enter the 6-digit code sent to $phone. '),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.baseline,
+                baseline: TextBaseline.alphabetic,
+                child: GestureDetector(
+                  onTap: flow.back,
+                  child: Text(
+                    'Change number',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 20),
         OtpBoxes(controller: _otp),
+        if (_otpError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _otpError!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.error,
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
-        Text(
-          'Dobara bhejo 0:38',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        if (_resendSeconds > 0)
+          Text(
+            'Resend code in 0:${_resendSeconds.toString().padLeft(2, '0')}',
+            style: Theme.of(context).textTheme.bodySmall,
+          )
+        else
+          TextButton(
+            onPressed: _startResend,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Resend code',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
         const SizedBox(height: 28),
         OnboardingActions(
           primaryLabel: 'Verify',
-          onPrimary: flow.riderVerify,
-          textLabel: 'SMS pe bhejo',
+          onPrimary: () {
+            final code = _otp.text.trim();
+            if (code.isNotEmpty && code.length != 6) {
+              setState(() {
+                _otpError = 'That code is incorrect. Try again.';
+              });
+              return;
+            }
+            setState(() => _otpError = null);
+            flow.riderVerify();
+          },
+          textLabel: 'Send via SMS instead',
           onText: flow.riderVerify,
         ),
       ],
@@ -167,40 +280,51 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         ),
         const SizedBox(height: 8),
         Text(
-          'CNIC pe jo likha hai, wahi likho.',
+          'Enter them exactly as on your CNIC.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         OnboardingField(
           controller: _name,
+          label: 'Full name',
           hint: 'Usman Ali',
           focused: true,
         ),
         const SizedBox(height: 10),
         OnboardingField(
           controller: _cnic,
-          hint: 'CNIC: 37101-1234567-1',
+          label: 'CNIC number',
+          hint: '00000-0000000-0',
           keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 12),
+        Text(
+          'Vehicle type',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
         ChoiceChips(
-          options: const ['Bike', 'Cycle'],
+          options: const ['Motorcycle', 'Bicycle'],
           selected: _vehicle,
           onSelect: (value) => setState(() => _vehicle = value),
         ),
         const SizedBox(height: 12),
         OnboardingField(
           controller: _plate,
-          hint: 'Number plate: ATK 1234',
+          label: 'Number plate',
+          hint: 'ATK 1234',
         ),
         const SizedBox(height: 10),
         OnboardingField(
           controller: _licence,
-          hint: 'Licence number',
+          label: 'Driving licence number',
+          hint: 'Enter licence number',
         ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Aage chalo',
+          primaryLabel: 'Continue',
           onPrimary: flow.riderSaveDetails,
         ),
       ],
@@ -223,24 +347,24 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Sirf check karne ke liye, aur kahin use nahi hote.',
+          'Your documents are used only for verification.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         _DocRow(
-          title: 'CNIC aage',
+          title: 'CNIC (front)',
           done: _frontDone,
           onTap: () => setState(() => _frontDone = true),
         ),
         const SizedBox(height: 10),
-        const _DocRow(title: 'CNIC peeche', done: false),
+        const _DocRow(title: 'CNIC (back)', done: false),
         const SizedBox(height: 10),
-        const _DocRow(title: 'Licence', done: false),
+        const _DocRow(title: 'Driving licence', done: false),
         const SizedBox(height: 10),
         const _DocRow(title: 'Selfie', done: false),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Bhej do',
+          primaryLabel: 'Submit application',
           onPrimary: flow.riderSubmitDocs,
         ),
       ],
@@ -263,16 +387,16 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         ),
         const SizedBox(height: 8),
         Text(
-          '24 se 48 ghante lagte hain.',
+          'We usually respond within 24 to 48 hours.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
         const _Timeline(),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Training book karo',
+          primaryLabel: 'Book orientation',
           onPrimary: () => unawaited(flow.finish()),
-          textLabel: 'Support se baat karo',
+          textLabel: 'Contact support',
           onText: () => unawaited(flow.finish()),
         ),
       ],
@@ -356,7 +480,7 @@ class _Tag extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        done ? 'Ho gaya' : 'Zaroori',
+        done ? 'Uploaded' : 'Required',
         style: TextStyle(
           color: done ? AppColors.success : AppColors.error,
           fontSize: 12,
@@ -375,23 +499,23 @@ class _Timeline extends StatelessWidget {
     return const Column(
       children: [
         _TlItem(
-          title: 'Application mil gayi',
-          detail: 'Documents bhi aa gaye',
+          title: 'Application received',
+          detail: 'Details and documents received',
           state: _TlState.done,
         ),
         _TlItem(
-          title: 'Documents check',
-          detail: 'Chal raha hai',
+          title: 'Document check',
+          detail: 'In progress',
           state: _TlState.now,
         ),
         _TlItem(
-          title: 'Chhoti si training',
-          detail: 'Online ya aamne saamne',
+          title: 'Orientation',
+          detail: 'Short training, online or in person',
           state: _TlState.next,
         ),
         _TlItem(
-          title: 'Online ho ja',
-          detail: 'Orders aana shuru',
+          title: 'Go online',
+          detail: 'Start receiving orders',
           state: _TlState.next,
           last: true,
         ),
@@ -427,8 +551,7 @@ class _TlItem extends StatelessWidget {
           child: Column(
             children: [
               _Dot(state: state),
-              if (!last)
-                Container(width: 2, height: 36, color: line),
+              if (!last) Container(width: 2, height: 36, color: line),
             ],
           ),
         ),
