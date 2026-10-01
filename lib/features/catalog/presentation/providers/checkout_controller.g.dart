@@ -90,7 +90,7 @@ final class PayChoiceProvider
   }
 }
 
-String _$payChoiceHash() => r'66d862bd97c4c61347a5414c8274fb119f89ff97';
+String _$payChoiceHash() => r'1d328e757a5648ee30b435e5306dfdbe86318420';
 
 /// Payment the customer picked for this checkout.
 

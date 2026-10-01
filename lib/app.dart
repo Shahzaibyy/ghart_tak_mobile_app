@@ -8,7 +8,7 @@ import 'package:attock_xpress/core/widgets/async_value_view.dart';
 import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
 import 'package:attock_xpress/features/auth/presentation/providers/auth_controller.dart';
-import 'package:attock_xpress/features/auth/presentation/screens/phone_login_screen.dart';
+import 'package:attock_xpress/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -50,7 +50,7 @@ class _SignedInHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = session;
-    if (current == null) return const PhoneLoginScreen();
+    if (current == null) return const OnboardingScreen();
     final name = current.user.name ?? 'Bhook Lagi';
     return switch (current.user.role) {
       CustomerRole() => CustomerShell(displayName: name),

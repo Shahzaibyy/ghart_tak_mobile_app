@@ -44,7 +44,7 @@ final class ThemeControllerProvider
   }
 }
 
-String _$themeControllerHash() => r'76a3e0a09b036bdcb3d56aa89f4120277d65e052';
+String _$themeControllerHash() => r'9f512b3e1bddf49cc12636315db4fdf2a1742be3';
 
 /// Light, dark, or follow the device.
 

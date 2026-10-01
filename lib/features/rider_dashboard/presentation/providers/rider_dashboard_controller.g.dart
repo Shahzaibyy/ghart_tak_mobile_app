@@ -232,7 +232,7 @@ final class RiderDashboardControllerProvider
 }
 
 String _$riderDashboardControllerHash() =>
-    r'dabc8e874f66003760d5847726f2ec5c07f6de5e';
+    r'b65ecce00cba49597af7c489dae4b590dfe81d7f';
 
 /// Rider home: availability plus the offline queue.
 

@@ -13,6 +13,7 @@ abstract final class AppColors {
   static const error = Color(0xFFB8452B);
   static const gold = Color(0xFFC9A063);
   static const peach = Color(0xFFF6D2C4);
+  static const tint = Color(0xFFF6E7DF);
 
   static const darkBackground = Color(0xFF17140F);
   static const darkSurface = Color(0xFF211D17);
