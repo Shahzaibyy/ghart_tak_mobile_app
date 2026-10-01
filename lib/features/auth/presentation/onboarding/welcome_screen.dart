@@ -5,6 +5,7 @@ import 'package:attock_xpress/core/widgets/brand_mark.dart';
 import 'package:attock_xpress/features/auth/presentation/providers/onboarding_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class _Slide {
   const new({
@@ -12,14 +13,12 @@ class _Slide {
     required this.title,
     required this.body,
     required this.sticker,
-    this.invert = false,
   });
 
   final BrandMarkKind mark;
   final String title;
   final String body;
   final String sticker;
-  final bool invert;
 }
 
 const _slides = [
@@ -46,12 +45,14 @@ const _slides = [
     title: 'Bike hai? Boss khud ban.',
     body: 'Order uthao, paisay kamao. Apna time, apni marzi.',
     sticker: 'Boss bhi tum',
-    invert: true,
   ),
 ];
 
-const _slideHold = Duration(seconds: 3);
+const _slideHold = Duration(seconds: 1);
 const _slideFade = Duration(milliseconds: 380);
+const _ink = Color(0xFFF5F1EB);
+const _muted = Color(0xFFA39A8E);
+const _stage = Color(0xFF0F0D0B);
 
 /// Animated Gen Z welcome. One Get started button.
 class WelcomeScreen extends ConsumerStatefulWidget {
@@ -64,15 +65,14 @@ class WelcomeScreen extends ConsumerStatefulWidget {
 
 class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   var _index = 0;
-  var _touching = false;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _timer = Timer.periodic(_slideHold, (_) {
       if (!mounted) return;
-      _syncAutoplay();
+      setState(() => _index = (_index + 1) % _slides.length);
     });
   }
 
@@ -82,171 +82,163 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     super.dispose();
   }
 
-  bool get _reducedMotion {
-    return MediaQuery.disableAnimationsOf(context);
-  }
-
-  void _syncAutoplay() {
-    _timer?.cancel();
-    if (_reducedMotion || _touching) return;
-    _timer = Timer.periodic(_slideHold, (_) {
-      if (!mounted || _touching) return;
-      _goTo((_index + 1) % _slides.length);
-    });
-  }
-
-  void _goTo(int index) {
-    if (_index == index) return;
-    setState(() => _index = index);
-  }
-
-  void _next() => _goTo((_index + 1) % _slides.length);
-
-  void _previous() {
-    _goTo((_index - 1 + _slides.length) % _slides.length);
-  }
-
-  void _onTouchStart() {
-    if (_reducedMotion) return;
-    setState(() => _touching = true);
-    _timer?.cancel();
-  }
-
-  void _onTouchEnd() {
-    if (_reducedMotion) return;
-    setState(() => _touching = false);
-    _syncAutoplay();
-  }
-
   @override
   Widget build(BuildContext context) {
     final slide = _slides[_index];
-    final invert = slide.invert;
-    final bg = invert ? AppColors.primary : AppColors.background;
-    final ink = invert ? AppColors.background : AppColors.text;
-    final muted = invert
-        ? AppColors.background.withValues(alpha: 0.72)
-        : AppColors.textMuted;
-    final btnFill = invert ? AppColors.background : AppColors.primary;
-    final btnInk = invert ? AppColors.error : AppColors.surface;
 
-    return AnimatedContainer(
-      duration: _reducedMotion ? Duration.zero : _slideFade,
-      color: bg,
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 28, 22, 22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AnimatedDefaultTextStyle(
-                  duration: _reducedMotion ? Duration.zero : _slideFade,
-                  style:
-                      Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: ink,
-                        fontWeight: FontWeight.w600,
-                      ) ??
-                      TextStyle(color: ink),
-                  child: const Text('Bhook Lagi'),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTapDown: (_) => _onTouchStart(),
-                    onTapUp: (_) {
-                      _next();
-                      _onTouchEnd();
-                    },
-                    onTapCancel: _onTouchEnd,
-                    onHorizontalDragStart: (_) => _onTouchStart(),
-                    onHorizontalDragEnd: (details) {
-                      final dx = details.primaryVelocity ?? 0;
-                      if (dx < -200) {
-                        _next();
-                      } else if (dx > 200) {
-                        _previous();
-                      }
-                      _onTouchEnd();
-                    },
+    return Scaffold(
+      backgroundColor: _stage,
+      body: Stack(
+        children: [
+          const Positioned.fill(child: _RingBackdrop()),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _WelcomeHeader(),
+                  Expanded(
                     child: AnimatedSwitcher(
-                      duration: _reducedMotion
-                          ? Duration.zero
-                          : _slideFade,
+                      duration: _slideFade,
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        final offset = Tween<Offset>(
+                          begin: const Offset(0, 0.06),
+                          end: Offset.zero,
+                        ).animate(animation);
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: offset,
+                            child: child,
+                          ),
+                        );
+                      },
                       child: _HeroCopy(
                         key: ValueKey(_index),
                         slide: slide,
-                        ink: ink,
-                        muted: muted,
                       ),
                     ),
                   ),
-                ),
-                _Dots(index: _index, invert: invert),
-                const SizedBox(height: 16),
-                AnimatedContainer(
-                  duration: _reducedMotion ? Duration.zero : _slideFade,
-                  child: _WelcomeButton(
-                    fill: btnFill,
-                    ink: btnInk,
-                    onPressed: () {
-                      ref
-                          .read(onboardingControllerProvider.notifier)
-                          .start();
-                    },
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    unawaited(
-                      ref
-                          .read(onboardingControllerProvider.notifier)
-                          .skipToHome(role: OnboardingRole.customer),
-                    );
-                  },
-                  child: Text(
-                    'Skip to customer home',
-                    style: TextStyle(
-                      color: invert ? ink : AppColors.primary,
+                  _Dots(index: _index),
+                  const SizedBox(height: 16),
+                  const _WelcomeButton(),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            unawaited(
+                              ref
+                                  .read(
+                                    onboardingControllerProvider.notifier,
+                                  )
+                                  .skipToHome(
+                                    role: OnboardingRole.customer,
+                                  ),
+                            );
+                          },
+                          child: const Text(
+                            'Skip to customer',
+                            style: TextStyle(
+                              color: _muted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            unawaited(
+                              ref
+                                  .read(
+                                    onboardingControllerProvider.notifier,
+                                  )
+                                  .skipToHome(role: OnboardingRole.rider),
+                            );
+                          },
+                          child: const Text(
+                            'Skip to rider',
+                            style: TextStyle(
+                              color: _muted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    unawaited(
-                      ref
-                          .read(onboardingControllerProvider.notifier)
-                          .skipToHome(role: OnboardingRole.rider),
-                    );
-                  },
-                  child: Text(
-                    'Skip to rider home',
-                    style: TextStyle(
-                      color: invert ? ink : AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
+class _WelcomeHeader extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SvgPicture.asset(
+          'assets/branding/mark_b.svg',
+          height: 28,
+          semanticsLabel: 'Bhook Lagi',
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'Bhook Lagi',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: _ink,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RingBackdrop extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    return const CustomPaint(painter: _RingsPainter());
+  }
+}
+
+class _RingsPainter extends CustomPainter {
+  const new();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = AppColors.primary.withValues(alpha: 0.18);
+    final center = Offset(size.width * 0.92, size.height * 0.52);
+    for (final radius in [90.0, 150.0, 210.0, 270.0]) {
+      canvas.drawCircle(center, radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _HeroCopy extends StatelessWidget {
-  const new({
-    required this.slide,
-    required this.ink,
-    required this.muted,
-    super.key,
-  });
+  const new({required this.slide, super.key});
 
   final _Slide slide;
-  final Color ink;
-  final Color muted;
 
   @override
   Widget build(BuildContext context) {
@@ -256,39 +248,43 @@ class _HeroCopy extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BrandMark(kind: slide.mark, size: 60),
-          const SizedBox(height: 16),
+          BrandMark(kind: slide.mark, size: 72),
+          const SizedBox(height: 22),
           Text(
             slide.title,
             style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              color: ink,
-              height: 1.1,
+              color: _ink,
+              height: 1.08,
               fontWeight: FontWeight.w600,
+              letterSpacing: -0.4,
+              fontSize: 34,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             slide.body,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: muted,
+              color: _muted,
+              height: 1.4,
+              fontSize: 16,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           Transform.rotate(
-            angle: -0.05,
+            angle: -0.06,
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 12,
-                vertical: 4,
+                vertical: 5,
               ),
               decoration: BoxDecoration(
-                border: Border.all(color: ink, width: 1.5),
+                border: Border.all(color: _ink, width: 1.4),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 slide.sticker,
-                style: TextStyle(
-                  color: ink,
+                style: const TextStyle(
+                  color: _ink,
                   fontWeight: FontWeight.w500,
                   fontSize: 13,
                 ),
@@ -302,14 +298,12 @@ class _HeroCopy extends StatelessWidget {
 }
 
 class _Dots extends StatelessWidget {
-  const new({required this.index, required this.invert});
+  const new({required this.index});
 
   final int index;
-  final bool invert;
 
   @override
   Widget build(BuildContext context) {
-    final color = invert ? AppColors.background : AppColors.primary;
     return Row(
       children: List.generate(_slides.length, (i) {
         final on = i == index;
@@ -319,7 +313,7 @@ class _Dots extends StatelessWidget {
           height: 6,
           width: on ? 22 : 6,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: on ? 1 : 0.3),
+            color: AppColors.primary.withValues(alpha: on ? 1 : 0.28),
             borderRadius: BorderRadius.circular(3),
           ),
         );
@@ -328,34 +322,28 @@ class _Dots extends StatelessWidget {
   }
 }
 
-class _WelcomeButton extends StatelessWidget {
-  const new({
-    required this.fill,
-    required this.ink,
-    required this.onPressed,
-  });
-
-  final Color fill;
-  final Color ink;
-  final VoidCallback onPressed;
+class _WelcomeButton extends ConsumerWidget {
+  const new();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Material(
-      color: fill,
+      color: AppColors.primary,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        onTap: onPressed,
+        onTap: () {
+          ref.read(onboardingControllerProvider.notifier).start();
+        },
         borderRadius: BorderRadius.circular(14),
-        child: SizedBox(
+        child: const SizedBox(
           height: 52,
           width: double.infinity,
           child: Center(
             child: Text(
               'Get started',
               style: TextStyle(
-                color: ink,
-                fontWeight: FontWeight.w500,
+                color: _ink,
+                fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
             ),

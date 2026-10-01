@@ -55,6 +55,9 @@ flutter:
     - assets/branding/logo_light.svg
     - assets/branding/customer_mark.svg
     - assets/branding/rider_mark.svg
+    - assets/branding/mark_b.svg
+    - assets/branding/app_icon.png
+    - assets/branding/app_icon.svg
   fonts:
     - family: Inter
       fonts:

@@ -31,8 +31,8 @@ void main() {
 
     expect(find.text('Get started'), findsOneWidget);
     expect(find.text('Bhook Lagi'), findsWidgets);
-    expect(find.text('Skip to customer home'), findsOneWidget);
-    expect(find.text('Skip to rider home'), findsOneWidget);
+    expect(find.text('Skip to customer'), findsOneWidget);
+    expect(find.text('Skip to rider'), findsOneWidget);
   });
 
   testWidgets('skip to customer home opens the feed', (tester) async {
@@ -62,7 +62,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.text('Skip to customer home'));
+    await tester.tap(find.text('Skip to customer'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
@@ -97,7 +97,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.text('Skip to rider home'));
+    await tester.tap(find.text('Skip to rider'));
     await tester.pump();
 
     verify(() => repository.enterPreview(const RiderRole())).called(1);
