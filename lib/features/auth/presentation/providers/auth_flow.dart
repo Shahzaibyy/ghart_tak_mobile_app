@@ -1,3 +1,4 @@
+import 'package:attock_xpress/core/config/demo_config.dart';
 import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
@@ -46,20 +47,34 @@ class AuthFlow extends _$AuthFlow {
   @override
   Future<AuthStep> build() async => const EnterPhone();
 
+  /// Switches the login role on the phone step (keeps the form).
+  void setRole(AppRole role) {
+    final step = state.value;
+    if (step is EnterPhone) {
+      state = AsyncData(EnterPhone(role: role));
+    }
+  }
+
   /// Validates [phone] and advances to the OTP step on success.
-  Future<void> requestOtp(String phone, {AppRole role = const CustomerRole()}) async {
+  Future<void> requestOtp(
+    String phone, {
+    AppRole? role,
+  }) async {
+    final current = state.value;
+    final resolved = role ??
+        (current is EnterPhone ? current.role : const CustomerRole());
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final result = await ref.read(requestOtpProvider).call(
-        phone: phone,
-        role: role,
-      );
+            phone: phone,
+            role: resolved,
+          );
       return switch (result) {
         Success(:final value) => EnterOtp(
-          phone: phone,
-          role: role,
-          devOtp: value.devOtp,
-        ),
+            phone: phone,
+            role: resolved,
+            devOtp: value.devOtp,
+          ),
         Err(:final failure) => throw failure,
       };
     });
@@ -72,12 +87,30 @@ class AuthFlow extends _$AuthFlow {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final result = await ref.read(verifyOtpProvider).call(
-        phone: step.phone,
-        role: step.role,
-        otp: otp,
-      );
+            phone: step.phone,
+            role: step.role,
+            otp: otp,
+          );
       return switch (result) {
         Success(:final value) => _adopt(value, step),
+        Err(:final failure) => throw failure,
+      };
+    });
+  }
+
+  /// One-tap Fateh Jang seed login (demo endpoint or OTP + `dev_otp`).
+  Future<void> demoLogin(DemoAccount account) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final result = await ref.read(authRepositoryProvider).demoLogin(
+            phone: account.phone,
+            role: account.role,
+          );
+      return switch (result) {
+        Success(:final value) => _adopt(
+            value,
+            EnterOtp(phone: account.phone, role: account.role),
+          ),
         Err(:final failure) => throw failure,
       };
     });

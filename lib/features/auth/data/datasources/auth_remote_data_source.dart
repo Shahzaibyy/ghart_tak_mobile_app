@@ -126,6 +126,44 @@ class AuthRemoteDataSource {
     return ProfileDto.fromJson(data);
   }
 
+  /// Dev-only one-tap login (`POST /auth/demo/login`). Returns null on 404.
+  Future<AuthSessionModel?> demoLogin({
+    required String phone,
+    required String role,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/demo/login',
+        data: <String, String>{
+          'phone': phone,
+          'role': role,
+        },
+      );
+      final data = unwrapData<Map<String, dynamic>>(response);
+      return AuthSessionModel.fromSessionJson(data);
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// Dev-only seeded account list (`GET /auth/demo/accounts`). Empty on 404.
+  Future<List<Map<String, dynamic>>> demoAccounts() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/auth/demo/accounts',
+      );
+      final data = unwrapData<List<dynamic>>(response);
+      return [
+        for (final row in data)
+          if (row is Map) Map<String, dynamic>.from(row),
+      ];
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) return const [];
+      rethrow;
+    }
+  }
+
   /// Revokes the refresh token. Ignores empty tokens.
   Future<void> logout(String refreshToken) async {
     if (refreshToken.isEmpty) return;

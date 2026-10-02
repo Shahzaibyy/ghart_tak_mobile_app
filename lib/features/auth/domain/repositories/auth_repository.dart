@@ -35,6 +35,12 @@ abstract interface class AuthRepository {
   /// Google sign-in with a Firebase ID token.
   Future<Result<AuthSession>> signInWithGoogle(String firebaseIdToken);
 
+  /// Dev one-tap login: prefers `/auth/demo/login`, else OTP + `dev_otp`.
+  Future<Result<AuthSession>> demoLogin({
+    required String phone,
+    required AppRole role,
+  });
+
   /// Clears the stored session (and revokes refresh when possible).
   Future<Result<Nothing>> logout();
 

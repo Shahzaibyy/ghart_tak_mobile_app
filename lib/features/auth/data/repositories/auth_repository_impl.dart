@@ -1,3 +1,4 @@
+import 'package:attock_xpress/core/config/demo_config.dart';
 import 'package:attock_xpress/core/errors/failure.dart';
 import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/core/network/dio_exception_mapper.dart';
@@ -5,6 +6,7 @@ import 'package:attock_xpress/core/storage/token_keys.dart';
 import 'package:attock_xpress/core/storage/token_store.dart';
 import 'package:attock_xpress/features/auth/data/auth_session_store.dart';
 import 'package:attock_xpress/features/auth/data/datasources/auth_remote_data_source.dart';
+import 'package:attock_xpress/features/auth/data/models/auth_session_model.dart';
 import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
 import 'package:attock_xpress/features/auth/domain/entities/app_user.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
@@ -128,6 +130,82 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Result<AuthSession>> demoLogin({
+    required String phone,
+    required AppRole role,
+  }) async {
+    final normalized = normalizePakistaniPhone(phone);
+    final wire = _roleWire(role);
+    final seedName = DemoConfig.accountsFor(role)
+        .where((a) => a.phone == normalized)
+        .map((a) => a.name)
+        .firstOrNull;
+    try {
+      final direct = await _remote.demoLogin(phone: normalized, role: wire);
+      if (direct != null) {
+        final saved = await _enrichAndSave(
+          direct,
+          role,
+          seedName: seedName,
+          seedPhone: normalized,
+        );
+        return Success(saved.toEntity());
+      }
+      // Render may not expose /auth/demo/* yet — OTP + dev_otp is equivalent.
+      final otpResult = await _remote.requestOtp(
+        phone: normalized,
+        role: wire,
+      );
+      final otp = otpResult.devOtp;
+      if (otp == null || otp.isEmpty) {
+        return const Err(
+          AuthFailure(
+            'Demo OTP missing — API must run with APP_ENV=development',
+          ),
+        );
+      }
+      var model = await _remote.verifyOtp(
+        phone: normalized,
+        role: wire,
+        otp: otp,
+      );
+      model = await _enrichAndSave(
+        model,
+        role,
+        seedName: seedName,
+        seedPhone: normalized,
+      );
+      return Success(model.toEntity());
+    } on DioException catch (error) {
+      return Err(mapDioException(error));
+    } on FormatException {
+      return const Err(ServerFailure());
+    }
+  }
+
+  Future<AuthSessionModel> _enrichAndSave(
+    AuthSessionModel model,
+    AppRole role, {
+    String? seedName,
+    String? seedPhone,
+  }) async {
+    var next = model.withProfile(name: seedName, phone: seedPhone);
+    if (role is CustomerRole) {
+      try {
+        final profile = await _remote.fetchMe();
+        next = next.withProfile(
+          name: profile.name ?? seedName,
+          phone: profile.phone ?? seedPhone,
+        );
+      } on DioException {
+        // Session is still valid without the profile enrich.
+      }
+    }
+    await _sessions.save(next);
+    return next;
+  }
+
+  @override
   Future<Result<AuthSession>> enterPreview(AppRole role) async {
     return Success(_previewSession(role));
   }
@@ -162,14 +240,14 @@ AuthSession _previewSession(AppRole role) {
       user: AppUser(
         id: 'preview-customer',
         role: CustomerRole(),
-        name: 'Ayesha',
+        name: 'Ayesha Khan',
       ),
     ),
     RiderRole() => const AuthSession(
       user: AppUser(
         id: 'preview-rider',
         role: RiderRole(),
-        name: 'Hamza',
+        name: 'Usman Ali',
       ),
     ),
   };
