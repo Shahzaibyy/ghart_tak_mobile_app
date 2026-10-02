@@ -18,6 +18,7 @@ AuthRepository authRepository(Ref ref) {
   return AuthRepositoryImpl(
     remote: AuthRemoteDataSource(ref.watch(dioProvider)),
     sessions: AuthSessionStore(ref.watch(tokenStoreProvider)),
+    tokens: ref.watch(tokenStoreProvider),
   );
 }
 

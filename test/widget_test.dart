@@ -5,11 +5,15 @@ import 'package:attock_xpress/features/auth/domain/entities/app_user.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
 import 'package:attock_xpress/features/auth/domain/repositories/auth_repository.dart';
 import 'package:attock_xpress/features/auth/presentation/providers/auth_providers.dart';
+import 'package:attock_xpress/features/catalog/data/sample_catalog.dart';
+import 'package:attock_xpress/features/catalog/presentation/providers/catalog_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository;
+
+
 
 void main() {
   testWidgets('shows welcome when signed out', (tester) async {
@@ -22,6 +26,9 @@ void main() {
       ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(repository),
+          catalogRepositoryProvider.overrideWith(
+            (ref) => const SampleCatalogRepository(),
+          ),
         ],
         child: const BhookLagiApp(),
       ),
@@ -56,6 +63,9 @@ void main() {
       ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(repository),
+          catalogRepositoryProvider.overrideWith(
+            (ref) => const SampleCatalogRepository(),
+          ),
         ],
         child: const BhookLagiApp(),
       ),
@@ -64,10 +74,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('Skip to customer'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
 
     expect(find.text('Featured merchants'), findsOneWidget);
-    expect(find.text('Tandoor House'), findsWidgets);
+    expect(find.textContaining('Tandoor House'), findsWidgets);
   });
 
   testWidgets('skip to rider home requests a rider preview', (tester) async {
@@ -91,6 +102,9 @@ void main() {
       ProviderScope(
         overrides: [
           authRepositoryProvider.overrideWithValue(repository),
+          catalogRepositoryProvider.overrideWith(
+            (ref) => const SampleCatalogRepository(),
+          ),
         ],
         child: const BhookLagiApp(),
       ),

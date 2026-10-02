@@ -1,4 +1,5 @@
 import 'package:attock_xpress/core/errors/failure.dart';
+import 'package:attock_xpress/core/network/api_envelope.dart';
 import 'package:dio/dio.dart';
 
 const Set<DioExceptionType> _offlineTypes = {
@@ -9,10 +10,12 @@ const Set<DioExceptionType> _offlineTypes = {
 };
 
 const Set<int> _authStatuses = {401, 403};
-const Set<int> _validationStatuses = {400, 422};
+const Set<int> _validationStatuses = {400, 409, 422};
 
 /// Maps a [DioException] to a [Failure] once, at the repository boundary.
 Failure mapDioException(DioException error) {
+  final apiError = readApiError(error);
+  if (apiError != null) return failureFromApiError(apiError);
   if (_offlineTypes.contains(error.type)) return const NetworkFailure();
   if (error.type != DioExceptionType.badResponse) {
     return const NetworkFailure();

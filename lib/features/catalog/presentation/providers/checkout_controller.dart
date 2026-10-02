@@ -1,5 +1,7 @@
+import 'package:attock_xpress/core/config/demo_config.dart';
 import 'package:attock_xpress/core/errors/failure.dart';
 import 'package:attock_xpress/core/errors/result.dart';
+import 'package:attock_xpress/core/utils/geo_point.dart';
 import 'package:attock_xpress/features/catalog/domain/order_type_for.dart';
 import 'package:attock_xpress/features/catalog/domain/usecases/place_order.dart';
 import 'package:attock_xpress/features/catalog/presentation/providers/cart_controller.dart';
@@ -70,28 +72,51 @@ class PayChoice extends _$PayChoice {
 /// Checkout progress. The basket itself stays on [CartController].
 @riverpod
 class CheckoutController extends _$CheckoutController {
+  String? _clientRequestId;
+
   @override
   CheckoutStep build() => const EditingCart();
 
-  /// Places the current basket.
+  /// Places the current basket against the live API.
   Future<void> submit() async {
     final cart = ref.read(cartControllerProvider);
     final merchant = cart.merchant;
     if (merchant == null || cart.isEmpty) return;
     final method = ref.read(payChoiceProvider);
     state = const SubmittingCart();
-    final result = await ref.read(placeOrderProvider).call(
-      OrderDraft(
-        title: merchant.name,
-        type: orderTypeFor(merchant.category),
-        deliveryFee: cart.deliveryFee,
-        photoUrl: merchant.photoUrl,
-        paymentLabel: paymentMethodLabel(method),
+
+    _clientRequestId ??=
+        'req-${DateTime.now().millisecondsSinceEpoch}';
+    final draft = OrderDraft(
+      title: merchant.name,
+      type: orderTypeFor(merchant.category),
+      zoneId: DemoConfig.attockZoneId,
+      merchantId: merchant.id,
+      drop: const GeoPoint(
+        lat: DemoConfig.demoDropLat,
+        lng: DemoConfig.demoDropLng,
       ),
+      dropAddress: DemoConfig.demoDropAddress,
+      paymentMethod: paymentMethodWire(method),
+      clientRequestId: _clientRequestId!,
+      items: [
+        for (final line in cart.lines)
+          OrderLineDraft(
+            catalogItemId: line.item.id,
+            quantity: line.quantity,
+          ),
+      ],
+      photoUrl: merchant.photoUrl,
+      deliveryFee: cart.deliveryFee,
+      paymentLabel: paymentMethodLabel(method),
     );
+
+    final result = await ref.read(placeOrderProvider).call(draft);
     switch (result) {
       case Success(:final value):
+        _clientRequestId = null;
         ref.read(cartControllerProvider.notifier).clear();
+        ref.invalidate(ordersControllerProvider);
         state = CartPlaced(orderId: value.id, title: value.title);
       case Err(:final failure):
         state = CartFailed(failure);

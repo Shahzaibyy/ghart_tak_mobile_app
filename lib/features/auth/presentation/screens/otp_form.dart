@@ -4,13 +4,21 @@ import 'package:flutter/material.dart';
 /// Six-digit OTP form. The phone number is not shown.
 class OtpForm extends StatelessWidget {
   /// Creates the form.
-  const new({required this.controller, required this.onSubmit, super.key});
+  const new({
+    required this.controller,
+    required this.onSubmit,
+    this.hint,
+    super.key,
+  });
 
   /// OTP field controller.
   final TextEditingController controller;
 
   /// Submits the code.
   final VoidCallback onSubmit;
+
+  /// Optional helper under the field (e.g. demo `dev_otp` notice).
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +30,9 @@ class OtpForm extends StatelessWidget {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 8),
-        const Text('We sent a 6-digit code to your phone.'),
+        Text(
+          hint ?? 'We sent a 6-digit code to your phone.',
+        ),
         const SizedBox(height: 24),
         TextField(
           controller: controller,

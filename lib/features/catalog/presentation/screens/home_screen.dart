@@ -10,6 +10,7 @@ import 'package:attock_xpress/features/catalog/domain/entities/merchant.dart';
 import 'package:attock_xpress/features/catalog/presentation/providers/catalog_controller.dart';
 import 'package:attock_xpress/features/catalog/presentation/widgets/active_order_card.dart';
 import 'package:attock_xpress/features/catalog/presentation/widgets/merchant_card.dart';
+import 'package:attock_xpress/features/map/presentation/address_picker_page.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -209,8 +210,15 @@ class _Top extends StatelessWidget {
   }
 }
 
-class _Address extends StatelessWidget {
+class _Address extends StatefulWidget {
   const new();
+
+  @override
+  State<_Address> createState() => _AddressState();
+}
+
+class _AddressState extends State<_Address> {
+  String _label = _homeAddress;
 
   @override
   Widget build(BuildContext context) {
@@ -218,20 +226,30 @@ class _Address extends StatelessWidget {
       color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(AppRadius.control),
       child: InkWell(
-        onTap: () => _note(context, _homeAddress),
+        onTap: () => unawaited(_pick(context)),
         borderRadius: BorderRadius.circular(AppRadius.control),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(
             children: [
-              Icon(GhIcons.mapPin, size: 16, color: AppColors.primary),
-              SizedBox(width: 8),
-              Expanded(child: Text(_homeAddress)),
+              const Icon(GhIcons.mapPin, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(child: Text(_label)),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _pick(BuildContext context) async {
+    final result = await Navigator.of(context).push<PickedAddress>(
+      MaterialPageRoute(
+        builder: (_) => AddressPickerPage(initialLabel: _label),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() => _label = result.label);
   }
 }
 

@@ -1,5 +1,7 @@
 import 'package:attock_xpress/core/errors/result.dart';
-import 'package:attock_xpress/features/catalog/data/sample_catalog.dart';
+import 'package:attock_xpress/core/network/network_providers.dart';
+import 'package:attock_xpress/features/catalog/data/datasources/catalog_remote_data_source.dart';
+import 'package:attock_xpress/features/catalog/data/repositories/catalog_repository_impl.dart';
 import 'package:attock_xpress/features/catalog/domain/entities/feed_category.dart';
 import 'package:attock_xpress/features/catalog/domain/entities/merchant.dart';
 import 'package:attock_xpress/features/catalog/domain/repositories/catalog_repository.dart';
@@ -8,10 +10,12 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'catalog_controller.g.dart';
 
-/// Catalog repository. Sample data until the merchant API is live.
+/// Catalog repository wired to the live zone merchants + menus.
 @Riverpod(keepAlive: true)
 CatalogRepository catalogRepository(Ref ref) {
-  return const SampleCatalogRepository();
+  return CatalogRepositoryImpl(
+    CatalogRemoteDataSource(ref.watch(dioProvider)),
+  );
 }
 
 /// Browse use case.
@@ -52,10 +56,15 @@ class CatalogController extends _$CatalogController {
 
   CatalogFeed _feed(FeedCategory category, String query) {
     final needle = query.trim().toLowerCase();
-    final merchants = _all.where((merchant) {
-      final sameCategory = _same(merchant.category, category);
+    final inCategory = _all.where((merchant) {
+      return _same(merchant.category, category);
+    }).toList();
+    // Seeded Attock currently has restaurants only — show them under other
+    // food-adjacent tabs so the home feed is never empty during demos.
+    final pool = inCategory.isNotEmpty ? inCategory : _all;
+    final merchants = pool.where((merchant) {
       final named = merchant.name.toLowerCase().contains(needle);
-      return sameCategory && (needle.isEmpty || named);
+      return needle.isEmpty || named;
     }).toList();
     return CatalogFeed(
       category: category,

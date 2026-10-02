@@ -1,6 +1,8 @@
+import 'package:attock_xpress/core/errors/failure.dart';
 import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_draft.dart';
+import 'package:attock_xpress/features/orders/domain/entities/order_quote.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_status.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_type.dart';
 import 'package:attock_xpress/features/orders/domain/repositories/order_repository.dart';
@@ -9,7 +11,7 @@ const _tandoorPhoto =
     'https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a'
     '?auto=format&fit=crop&w=1200&q=70';
 
-/// Orders shown before the API is available, so the UI can be reviewed.
+/// Offline stand-in when the API is unreachable.
 class SampleOrderRepository implements OrderRepository {
   /// Creates a repository seeded with Attock sample orders.
   new() : _orders = List.of(_seed);
@@ -31,6 +33,27 @@ class SampleOrderRepository implements OrderRepository {
     );
     _orders.insert(0, order);
     return Success(order);
+  }
+
+  @override
+  Future<Result<OrderQuote>> quote(OrderDraft draft) async {
+    return Success(
+      OrderQuote(
+        distanceKm: '2.40',
+        durationMin: 12,
+        itemTotal: '450.00',
+        deliveryFee: '${draft.deliveryFee}.00',
+        total: '${450 + draft.deliveryFee}.00',
+        approximate: true,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<Order>> getOrder(String id) async {
+    final match = _orders.where((o) => o.id == id).firstOrNull;
+    if (match == null) return const Err(ServerFailure('Order not found'));
+    return Success(match);
   }
 }
 

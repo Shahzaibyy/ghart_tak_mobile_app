@@ -1,5 +1,6 @@
 import 'package:attock_xpress/core/errors/failure.dart';
 import 'package:attock_xpress/core/errors/result.dart';
+import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
 import 'package:attock_xpress/features/auth/domain/repositories/auth_repository.dart';
 
@@ -10,9 +11,10 @@ class VerifyOtp {
 
   final AuthRepository _repository;
 
-  /// Verifies [otp] for [phone].
+  /// Verifies [otp] for [phone] / [role].
   Future<Result<AuthSession>> call({
     required String phone,
+    required AppRole role,
     required String otp,
   }) {
     if (otp.length != 6) {
@@ -20,6 +22,6 @@ class VerifyOtp {
         const Err(ValidationFailure('Enter the 6-digit code')),
       );
     }
-    return _repository.verifyOtp(phone: phone, otp: otp);
+    return _repository.verifyOtp(phone: phone, role: role, otp: otp);
   }
 }

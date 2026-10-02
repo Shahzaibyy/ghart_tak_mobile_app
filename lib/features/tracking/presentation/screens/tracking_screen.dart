@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/widgets/gh_avatar.dart';
+import 'package:attock_xpress/features/map/presentation/tracking_map.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_status.dart';
-import 'package:attock_xpress/features/tracking/presentation/widgets/customer_route_sketch.dart';
 import 'package:flutter/material.dart';
 
-/// Live order card over a route sketch.
+/// Live order card over the Mapbox tracking map.
 class TrackingScreen extends StatelessWidget {
   /// Creates the tracking screen for [orderId].
   const new({
@@ -31,7 +31,7 @@ class TrackingScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: CustomerRouteSketch()),
+          Positioned.fill(child: TrackingMap(orderId: orderId)),
           SafeArea(
             child: Column(
               children: [

@@ -39,21 +39,31 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
         child: AsyncValueView<AuthStep>(
           value: flow,
           onRetry: () => ref.invalidate(authFlowProvider),
-          data: (step) => switch (step) {
-            EnterPhone() => _PhoneForm(
-              controller: _phone,
-              onSubmit: () => unawaited(_requestOtp()),
-              onPreviewCustomer: () => unawaited(
-                _preview(const CustomerRole()),
+          data: (step) {
+            if (step is EnterOtp &&
+                step.devOtp != null &&
+                _otp.text.isEmpty) {
+              _otp.text = step.devOtp!;
+            }
+            return switch (step) {
+              EnterPhone() => _PhoneForm(
+                controller: _phone,
+                onSubmit: () => unawaited(_requestOtp()),
+                onPreviewCustomer: () => unawaited(
+                  _preview(const CustomerRole()),
+                ),
+                onPreviewRider: () => unawaited(
+                  _preview(const RiderRole()),
+                ),
               ),
-              onPreviewRider: () => unawaited(
-                _preview(const RiderRole()),
+              EnterOtp(:final devOtp) => OtpForm(
+                controller: _otp,
+                onSubmit: () => unawaited(_verify()),
+                hint: devOtp == null
+                    ? null
+                    : 'Dev OTP filled automatically ($devOtp)',
               ),
-            ),
-            EnterOtp() => OtpForm(
-              controller: _otp,
-              onSubmit: () => unawaited(_verify()),
-            ),
+            };
           },
         ),
       ),

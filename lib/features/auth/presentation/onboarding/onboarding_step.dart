@@ -1,4 +1,6 @@
-/// Local onboarding machine. No network until the user finishes or skips.
+import 'package:attock_xpress/features/auth/domain/phone_number.dart';
+
+/// Local onboarding machine. Network is driven by [OnboardingController].
 sealed class OnboardingStep {
   const new();
 }
@@ -24,10 +26,20 @@ final class CustomerPhoneStep extends OnboardingStep {
 /// Customer OTP entry.
 final class CustomerOtpStep extends OnboardingStep {
   /// Creates the customer OTP step.
-  const new(this.phone);
+  const new(
+    this.phone, {
+    this.devOtp,
+    this.channel = OtpChannel.whatsapp,
+  });
 
-  /// Display-only phone string.
+  /// Display / API phone string.
   final String phone;
+
+  /// Development OTP when present.
+  final String? devOtp;
+
+  /// Channel used for the last send.
+  final OtpChannel channel;
 }
 
 /// Customer name and delivery place.
@@ -45,7 +57,7 @@ final class CustomerIntentStep extends OnboardingStep {
   final String name;
 }
 
-/// Rider phone and city.
+/// Rider phone and city (zone).
 final class RiderPhoneStep extends OnboardingStep {
   /// Creates the rider phone step.
   const new();
@@ -54,10 +66,24 @@ final class RiderPhoneStep extends OnboardingStep {
 /// Rider OTP entry.
 final class RiderOtpStep extends OnboardingStep {
   /// Creates the rider OTP step.
-  const new(this.phone);
+  const new(
+    this.phone, {
+    this.devOtp,
+    this.channel = OtpChannel.whatsapp,
+    this.zoneId,
+  });
 
-  /// Display-only phone string.
+  /// Display / API phone string.
   final String phone;
+
+  /// Development OTP when present.
+  final String? devOtp;
+
+  /// Channel used for the last send.
+  final OtpChannel channel;
+
+  /// Selected zone for apply.
+  final String? zoneId;
 }
 
 /// Rider identity and vehicle.

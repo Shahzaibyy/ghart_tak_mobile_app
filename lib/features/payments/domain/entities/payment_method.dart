@@ -37,10 +37,18 @@ String paymentMethodLabel(PaymentMethod method) {
   };
 }
 
+/// API `payment_method` wire value.
+String paymentMethodWire(PaymentMethod method) {
+  return switch (method) {
+    JazzCash() => 'jazzcash',
+    EasyPaisa() => 'easypaisa',
+    CashOnDelivery() => 'cod',
+    WalletPayment() => 'wallet',
+  };
+}
+
 /// Methods offered at checkout.
 const List<PaymentMethod> availablePaymentMethods = [
-  JazzCash(),
-  EasyPaisa(),
   CashOnDelivery(),
   WalletPayment(),
 ];

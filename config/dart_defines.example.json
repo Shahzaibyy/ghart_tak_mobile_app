@@ -1,5 +1,7 @@
 {
-  "API_BASE_URL": "https://api.ghartak.local",
-  "WS_BASE_URL": "wss://api.ghartak.local",
+  "ACCESS_TOKEN": "pk.your_mapbox_public_token",
+  "API_BASE_URL": "https://ghartak-backend-j3g5.onrender.com",
+  "WS_BASE_URL": "wss://ghartak-backend-j3g5.onrender.com",
+  "DEMO": "true",
   "GOOGLE_MAPS_API_KEY": ""
 }

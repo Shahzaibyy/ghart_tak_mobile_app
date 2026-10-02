@@ -12,7 +12,10 @@ Dio buildDio({required TokenStore tokenStore}) {
       baseUrl: AppConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 20),
-      headers: const {'Accept': 'application/json'},
+      headers: const {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
     ),
   );
   dio.interceptors.addAll([

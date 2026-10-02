@@ -1,11 +1,14 @@
 import 'package:attock_xpress/core/errors/failure.dart';
 import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/core/network/dio_exception_mapper.dart';
+import 'package:attock_xpress/core/storage/token_keys.dart';
+import 'package:attock_xpress/core/storage/token_store.dart';
 import 'package:attock_xpress/features/auth/data/auth_session_store.dart';
 import 'package:attock_xpress/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
 import 'package:attock_xpress/features/auth/domain/entities/app_user.dart';
 import 'package:attock_xpress/features/auth/domain/entities/auth_session.dart';
+import 'package:attock_xpress/features/auth/domain/phone_number.dart';
 import 'package:attock_xpress/features/auth/domain/repositories/auth_repository.dart';
 import 'package:dio/dio.dart';
 
@@ -13,12 +16,16 @@ import 'package:dio/dio.dart';
 class AuthRepositoryImpl implements AuthRepository {
   /// Creates the repository.
   const new({
-    required this._remote,
-    required this._sessions,
-  });
+    required AuthRemoteDataSource remote,
+    required AuthSessionStore sessions,
+    required TokenStore tokens,
+  }) : _remote = remote,
+       _sessions = sessions,
+       _tokens = tokens;
 
   final AuthRemoteDataSource _remote;
   final AuthSessionStore _sessions;
+  final TokenStore _tokens;
 
   @override
   Future<Result<AuthSession?>> currentSession() async {
@@ -30,10 +37,18 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Result<Nothing>> requestOtp(String phone) async {
+  Future<Result<OtpRequestResult>> requestOtp({
+    required String phone,
+    required AppRole role,
+    OtpChannel channel = OtpChannel.whatsapp,
+  }) async {
     try {
-      await _remote.requestOtp(phone);
-      return const Success(nothing);
+      final result = await _remote.requestOtp(
+        phone: normalizePakistaniPhone(phone),
+        role: _roleWire(role),
+        channel: channel,
+      );
+      return Success(result);
     } on DioException catch (error) {
       return Err(mapDioException(error));
     }
@@ -42,10 +57,67 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<AuthSession>> verifyOtp({
     required String phone,
+    required AppRole role,
     required String otp,
   }) async {
     try {
-      final model = await _remote.verifyOtp(phone: phone, otp: otp);
+      var model = await _remote.verifyOtp(
+        phone: normalizePakistaniPhone(phone),
+        role: _roleWire(role),
+        otp: otp,
+      );
+      if (role is CustomerRole) {
+        try {
+          final profile = await _remote.fetchMe();
+          model = model.withProfile(
+            name: profile.name,
+            phone: profile.phone,
+          );
+        } on DioException {
+          // Session is still valid without the profile enrich.
+        }
+      }
+      await _sessions.save(model);
+      return Success(model.toEntity());
+    } on DioException catch (error) {
+      return Err(mapDioException(error));
+    } on FormatException {
+      return const Err(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Result<OtpRequestResult>> requestEmailOtp(String email) async {
+    try {
+      return Success(await _remote.requestEmailOtp(email.trim()));
+    } on DioException catch (error) {
+      return Err(mapDioException(error));
+    }
+  }
+
+  @override
+  Future<Result<AuthSession>> verifyEmailOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final model = await _remote.verifyEmailOtp(
+        email: email.trim(),
+        otp: otp,
+      );
+      await _sessions.save(model);
+      return Success(model.toEntity());
+    } on DioException catch (error) {
+      return Err(mapDioException(error));
+    } on FormatException {
+      return const Err(ServerFailure());
+    }
+  }
+
+  @override
+  Future<Result<AuthSession>> signInWithGoogle(String firebaseIdToken) async {
+    try {
+      final model = await _remote.signInWithGoogle(firebaseIdToken);
       await _sessions.save(model);
       return Success(model.toEntity());
     } on DioException catch (error) {
@@ -63,12 +135,25 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Result<Nothing>> logout() async {
     try {
+      final refresh = await _tokens.read(TokenKeys.refresh) ?? '';
+      try {
+        await _remote.logout(refresh);
+      } on DioException {
+        // Always clear local state even if revoke fails.
+      }
       await _sessions.clear();
       return const Success(nothing);
     } on FormatException {
       return const Err(AuthFailure());
     }
   }
+}
+
+String _roleWire(AppRole role) {
+  return switch (role) {
+    CustomerRole() => 'customer',
+    RiderRole() => 'rider',
+  };
 }
 
 AuthSession _previewSession(AppRole role) {

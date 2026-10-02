@@ -1,27 +1,45 @@
 import 'dart:convert';
 
 import 'package:attock_xpress/features/tracking/domain/entities/rider_location.dart';
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-/// WebSocket wrapper. Widgets never open a [WebSocketChannel] themselves.
+/// WebSocket wrapper for `GET /ws/location/{order_id}`.
+///
+/// Send `Authorization: Bearer` as required by the OpenAPI contract.
+/// Widgets never open a [WebSocketChannel] themselves.
 class LocationSocket {
-  /// Creates a socket client for [_baseUri].
+  /// Creates a socket client for [baseUri].
   new({
-    required this._baseUri,
-    WebSocketChannel Function(Uri uri)? connect,
-  }) : _connect = connect ?? WebSocketChannel.connect;
+    required Uri baseUri,
+    Future<String?> Function()? readAccessToken,
+    WebSocketChannel Function(Uri uri, {Map<String, dynamic>? headers})?
+        connect,
+  }) : _baseUri = baseUri,
+       _readAccessToken = readAccessToken,
+       _connect = connect ?? _defaultConnect;
 
   final Uri _baseUri;
-  final WebSocketChannel Function(Uri uri) _connect;
+  final Future<String?> Function()? _readAccessToken;
+  final WebSocketChannel Function(Uri uri, {Map<String, dynamic>? headers})
+  _connect;
   WebSocketChannel? _channel;
 
   /// Connects to the order room and maps frames to locations.
-  Stream<RiderLocation> watch(String orderId) {
+  Stream<RiderLocation> watch(String orderId) async* {
+    final headers = <String, dynamic>{};
+    final token = await _readAccessToken?.call();
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
     final channel = _connect(
       _baseUri.replace(path: '/ws/location/$orderId'),
+      headers: headers.isEmpty ? null : headers,
     );
     _channel = channel;
-    return channel.stream.map((event) => _decode(event, orderId));
+    await for (final event in channel.stream) {
+      yield _decode(event, orderId);
+    }
   }
 
   /// Closes the current socket.
@@ -49,6 +67,19 @@ class LocationSocket {
       orderId: orderId,
       lat: lat.toDouble(),
       lng: lng.toDouble(),
+    );
+  }
+
+  static WebSocketChannel _defaultConnect(
+    Uri uri, {
+    Map<String, dynamic>? headers,
+  }) {
+    if (headers == null || headers.isEmpty) {
+      return IOWebSocketChannel.connect(uri);
+    }
+    return IOWebSocketChannel.connect(
+      uri,
+      headers: headers.map((k, v) => MapEntry(k, '$v')),
     );
   }
 }

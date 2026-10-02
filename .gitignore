@@ -50,3 +50,8 @@ config/dart_defines.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local secrets
+.env
+env/
+config/dart_defines.json

@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:attock_xpress/core/config/demo_config.dart';
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/widgets/brand_mark.dart';
+import 'package:attock_xpress/features/auth/domain/phone_number.dart';
 import 'package:attock_xpress/features/auth/presentation/onboarding/onboarding_step.dart';
 import 'package:attock_xpress/features/auth/presentation/onboarding/onboarding_widgets.dart';
 import 'package:attock_xpress/features/auth/presentation/providers/onboarding_controller.dart';
+import 'package:attock_xpress/features/onboarding/presentation/onboarding_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,11 +33,13 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
   final _cnic = TextEditingController();
   final _plate = TextEditingController();
   final _licence = TextEditingController();
-  var _city = 'Fateh Jang';
+  var _zoneId = DemoConfig.attockZoneId;
+  var _zoneName = 'Attock City';
   var _vehicle = 'Motorcycle';
-  var _frontDone = true;
+  final _docsDone = <String>{};
   String? _phoneError;
   String? _otpError;
+  var _busy = false;
   var _resendSeconds = 38;
   Timer? _resendTimer;
 
@@ -42,6 +47,10 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
   void didUpdateWidget(covariant RiderOnboardingPages oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.step is RiderOtpStep && oldWidget.step is! RiderOtpStep) {
+      final step = widget.step as RiderOtpStep;
+      if (step.devOtp != null && _otp.text.isEmpty) {
+        _otp.text = step.devOtp!;
+      }
       _startResend();
     }
   }
@@ -81,12 +90,23 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
     return RegExp(r'^3\d{9}$').hasMatch(local);
   }
 
+  Future<void> _run(Future<String?> Function() action) async {
+    setState(() => _busy = true);
+    final error = await action();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final flow = ref.read(onboardingControllerProvider.notifier);
     return switch (widget.step) {
       RiderPhoneStep() => _phonePage(flow),
-      RiderOtpStep(:final phone) => _otpPage(flow, phone),
+      RiderOtpStep(:final phone, :final channel, :final devOtp) =>
+        _otpPage(flow, phone, channel, devOtp),
       RiderDetailsStep() => _detailsPage(flow),
       RiderDocsStep() => _docsPage(flow),
       RiderReviewStep() => _reviewPage(flow),
@@ -95,6 +115,7 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
   }
 
   Widget _phonePage(OnboardingController flow) {
+    final zones = ref.watch(activeZonesProvider);
     return OnboardingScaffold(
       mark: BrandMarkKind.rider,
       onBack: flow.back,
@@ -144,39 +165,85 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
           ),
         ),
         const SizedBox(height: 6),
-        ChoiceChips(
-          options: const [
-            'Fateh Jang',
-            'Attock City',
-            'Hazro',
-            'Hassan Abdal',
-          ],
-          selected: _city,
-          onSelect: (value) => setState(() => _city = value),
+        zones.when(
+          data: (list) {
+            final names = list.map((z) => z.name).toList();
+            if (names.isEmpty) {
+              return Text(
+                _zoneName,
+                style: Theme.of(context).textTheme.bodyMedium,
+              );
+            }
+            return ChoiceChips(
+              options: names,
+              selected: _zoneName,
+              onSelect: (value) {
+                final match = list.firstWhere((z) => z.name == value);
+                setState(() {
+                  _zoneName = match.name;
+                  _zoneId = match.id;
+                });
+              },
+            );
+          },
+          loading: () => const LinearProgressIndicator(minHeight: 2),
+          error: (_, _) => ChoiceChips(
+            options: const ['Attock City', 'Hasan Abdal'],
+            selected: _zoneName,
+            onSelect: (value) => setState(() {
+              _zoneName = value;
+              _zoneId = value == 'Hasan Abdal'
+                  ? DemoConfig.hasanAbdalZoneId
+                  : DemoConfig.attockZoneId;
+            }),
+          ),
         ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Apply now',
-          onPrimary: () {
-            if (!_isValidPhone(_phone.text) && _phone.text.trim().isNotEmpty) {
-              setState(() {
-                _phoneError = 'Enter a valid 10-digit mobile number.';
-              });
-              return;
-            }
-            setState(() => _phoneError = null);
-            flow.riderApply(_phone.text);
-          },
+          primaryLabel: _busy ? 'Sending…' : 'Apply now',
+          onPrimary: _busy
+              ? () {}
+              : () {
+                  if (!_isValidPhone(_phone.text) &&
+                      _phone.text.trim().isNotEmpty) {
+                    setState(() {
+                      _phoneError = 'Enter a valid 10-digit mobile number.';
+                    });
+                    return;
+                  }
+                  setState(() => _phoneError = null);
+                  unawaited(
+                    _run(
+                      () => flow.riderApply(
+                        _phone.text,
+                        zoneId: _zoneId,
+                        channel: OtpChannel.whatsapp,
+                      ),
+                    ),
+                  );
+                },
           textLabel: 'Already a rider? Log in',
-          onText: () => unawaited(
-            flow.skipToHome(role: OnboardingRole.rider),
-          ),
+          onText: _busy
+              ? () {}
+              : () => unawaited(
+                  _run(
+                    () => flow.riderLogin(
+                      _phone.text,
+                      channel: OtpChannel.whatsapp,
+                    ),
+                  ),
+                ),
         ),
       ],
     );
   }
 
-  Widget _otpPage(OnboardingController flow, String phone) {
+  Widget _otpPage(
+    OnboardingController flow,
+    String phone,
+    OtpChannel channel,
+    String? devOtp,
+  ) {
     return OnboardingScaffold(
       mark: BrandMarkKind.rider,
       onBack: flow.back,
@@ -185,7 +252,7 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
       ),
       children: [
         Text(
-          'WhatsApp check karo',
+          channel == OtpChannel.sms ? 'SMS check karo' : 'WhatsApp check karo',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -213,6 +280,15 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
             ],
           ),
         ),
+        if (devOtp != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Dev OTP: $devOtp',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.primary,
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         OtpBoxes(controller: _otp),
         if (_otpError != null) ...[
@@ -232,7 +308,15 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
           )
         else
           TextButton(
-            onPressed: _startResend,
+            onPressed: () => unawaited(
+              _run(
+                () => flow.riderApply(
+                  phone,
+                  zoneId: _zoneId,
+                  channel: channel,
+                ),
+              ),
+            ),
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
@@ -245,20 +329,22 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
           ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Verify',
-          onPrimary: () {
-            final code = _otp.text.trim();
-            if (code.isNotEmpty && code.length != 6) {
-              setState(() {
-                _otpError = 'That code is incorrect. Try again.';
-              });
-              return;
-            }
-            setState(() => _otpError = null);
-            flow.riderVerify();
-          },
+          primaryLabel: _busy ? 'Verifying…' : 'Verify',
+          onPrimary: _busy
+              ? () {}
+              : () {
+                  final code = _otp.text.trim();
+                  if (code.isNotEmpty && code.length != 6) {
+                    setState(() {
+                      _otpError = 'That code is incorrect. Try again.';
+                    });
+                    return;
+                  }
+                  setState(() => _otpError = null);
+                  unawaited(_run(() => flow.riderVerify(code)));
+                },
           textLabel: 'Send via SMS instead',
-          onText: flow.riderVerify,
+          onText: () => unawaited(_run(flow.riderSendSms)),
         ),
       ],
     );
@@ -324,8 +410,20 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Continue',
-          onPrimary: flow.riderSaveDetails,
+          primaryLabel: _busy ? 'Saving…' : 'Continue',
+          onPrimary: _busy
+              ? () {}
+              : () => unawaited(
+                  _run(
+                    () => flow.riderSaveDetails(
+                      name: _name.text,
+                      cnic: _cnic.text,
+                      vehicleType: _vehicle,
+                      vehicleReg: _plate.text,
+                      licenseNumber: _licence.text,
+                    ),
+                  ),
+                ),
         ),
       ],
     );
@@ -353,22 +451,46 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         const SizedBox(height: 16),
         _DocRow(
           title: 'CNIC (front)',
-          done: _frontDone,
-          onTap: () => setState(() => _frontDone = true),
+          done: _docsDone.contains('cnic_front'),
+          onTap: () => unawaited(_markDoc(flow, 'cnic_front')),
         ),
         const SizedBox(height: 10),
-        const _DocRow(title: 'CNIC (back)', done: false),
+        _DocRow(
+          title: 'CNIC (back)',
+          done: _docsDone.contains('cnic_back'),
+          onTap: () => unawaited(_markDoc(flow, 'cnic_back')),
+        ),
         const SizedBox(height: 10),
-        const _DocRow(title: 'Driving licence', done: false),
+        _DocRow(
+          title: 'Driving licence',
+          done: _docsDone.contains('driving_licence'),
+          onTap: () => unawaited(_markDoc(flow, 'driving_licence')),
+        ),
         const SizedBox(height: 10),
-        const _DocRow(title: 'Selfie', done: false),
+        _DocRow(
+          title: 'Selfie',
+          done: _docsDone.contains('selfie'),
+          onTap: () => unawaited(_markDoc(flow, 'selfie')),
+        ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Submit application',
-          onPrimary: flow.riderSubmitDocs,
+          primaryLabel: _busy ? 'Submitting…' : 'Submit application',
+          onPrimary: _busy
+              ? () {}
+              : () => unawaited(_run(flow.riderSubmitDocs)),
         ),
       ],
     );
+  }
+
+  Future<void> _markDoc(OnboardingController flow, String purpose) async {
+    await _run(() async {
+      final err = await flow.riderMarkDocument(purpose);
+      if (err == null && mounted) {
+        setState(() => _docsDone.add(purpose));
+      }
+      return err;
+    });
   }
 
   Widget _reviewPage(OnboardingController flow) {
@@ -394,10 +516,12 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         const _Timeline(),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Book orientation',
-          onPrimary: () => unawaited(flow.finish()),
+          primaryLabel: _busy ? 'Booking…' : 'Book orientation',
+          onPrimary: _busy
+              ? () {}
+              : () => unawaited(_run(flow.riderBookOrientation)),
           textLabel: 'Contact support',
-          onText: () => unawaited(flow.finish()),
+          onText: () => unawaited(_run(flow.riderContactSupport)),
         ),
       ],
     );

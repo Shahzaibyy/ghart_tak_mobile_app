@@ -7,14 +7,21 @@ import 'package:dio/dio.dart';
 
 /// Attaches the JWT and retries a request once after a silent refresh.
 class AuthInterceptor extends Interceptor {
-  /// Creates an interceptor that reads tokens from [_store].
+  /// Creates an interceptor that reads tokens from [store].
   new({
-    required this._store,
-    required this._dio,
+    required TokenStore store,
+    required Dio dio,
     Dio? refreshClient,
-  }) : _refreshClient =
+  }) : _store = store,
+       _dio = dio,
+       _refreshClient =
            refreshClient ??
-           Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl));
+           Dio(
+             BaseOptions(
+               baseUrl: AppConfig.apiBaseUrl,
+               headers: const {'Accept': 'application/json'},
+             ),
+           );
 
   final TokenStore _store;
   final Dio _dio;
@@ -57,6 +64,9 @@ class AuthInterceptor extends Interceptor {
     }
     final refreshed = await _refresh();
     if (!refreshed) {
+      await _store.delete(TokenKeys.access);
+      await _store.delete(TokenKeys.refresh);
+      await _store.delete(TokenKeys.session);
       handler.next(err);
       return;
     }
@@ -86,7 +96,7 @@ class AuthInterceptor extends Interceptor {
     if (refresh == null || refresh.isEmpty) return false;
     try {
       final response = await _refreshClient.post<Map<String, dynamic>>(
-        '/auth/token/refresh',
+        '/auth/refresh',
         data: <String, String>{'refresh_token': refresh},
       );
       return await _storeRotatedTokens(response.data);
@@ -95,14 +105,17 @@ class AuthInterceptor extends Interceptor {
     }
   }
 
-  Future<bool> _storeRotatedTokens(Object? data) async {
-    if (data is! Map) return false;
-    final json = Map<String, dynamic>.from(data);
-    final access = json['jwt'];
-    final refresh = json['refresh_token'];
-    if (access is! String || refresh is! String) return false;
+  Future<bool> _storeRotatedTokens(Object? body) async {
+    if (body is! Map) return false;
+    final json = Map<String, dynamic>.from(body);
+    final data = json['data'] is Map
+        ? Map<String, dynamic>.from(json['data'] as Map)
+        : json;
+    final access = data['access_token'];
+    final nextRefresh = data['refresh_token'];
+    if (access is! String || nextRefresh is! String) return false;
     await _store.write(key: TokenKeys.access, value: access);
-    await _store.write(key: TokenKeys.refresh, value: refresh);
+    await _store.write(key: TokenKeys.refresh, value: nextRefresh);
     return true;
   }
 }

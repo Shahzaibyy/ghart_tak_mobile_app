@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/widgets/brand_mark.dart';
+import 'package:attock_xpress/features/auth/domain/phone_number.dart';
 import 'package:attock_xpress/features/auth/presentation/onboarding/onboarding_step.dart';
 import 'package:attock_xpress/features/auth/presentation/onboarding/onboarding_widgets.dart';
 import 'package:attock_xpress/features/auth/presentation/providers/onboarding_controller.dart';
@@ -33,6 +34,7 @@ class _CustomerOnboardingPagesState
   String? _phoneError;
   String? _otpError;
   String? _nameError;
+  var _busy = false;
   var _resendSeconds = 42;
   Timer? _resendTimer;
 
@@ -40,6 +42,10 @@ class _CustomerOnboardingPagesState
   void didUpdateWidget(covariant CustomerOnboardingPages oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.step is CustomerOtpStep && oldWidget.step is! CustomerOtpStep) {
+      final step = widget.step as CustomerOtpStep;
+      if (step.devOtp != null && _otp.text.isEmpty) {
+        _otp.text = step.devOtp!;
+      }
       _startResend();
     }
   }
@@ -77,12 +83,23 @@ class _CustomerOnboardingPagesState
     return RegExp(r'^3\d{9}$').hasMatch(local);
   }
 
+  Future<void> _run(Future<String?> Function() action) async {
+    setState(() => _busy = true);
+    final error = await action();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final flow = ref.read(onboardingControllerProvider.notifier);
     return switch (widget.step) {
       CustomerPhoneStep() => _phonePage(flow),
-      CustomerOtpStep(:final phone) => _otpPage(flow, phone),
+      CustomerOtpStep(:final phone, :final channel, :final devOtp) =>
+        _otpPage(flow, phone, channel, devOtp),
       CustomerProfileStep() => _profilePage(flow),
       CustomerIntentStep(:final name) => _intentPage(flow, name),
       _ => const SizedBox.shrink(),
@@ -131,34 +148,65 @@ class _CustomerOnboardingPagesState
         ],
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Send code',
-          onPrimary: () {
-            if (!_isValidPhone(_phone.text) && _phone.text.trim().isNotEmpty) {
-              setState(() {
-                _phoneError = 'Enter a valid 10-digit mobile number.';
-              });
-              return;
-            }
-            setState(() => _phoneError = null);
-            flow.customerSendCode(_phone.text);
-          },
+          primaryLabel: _busy ? 'Sending…' : 'Send code',
+          onPrimary: _busy
+              ? () {}
+              : () {
+                  if (!_isValidPhone(_phone.text) &&
+                      _phone.text.trim().isNotEmpty) {
+                    setState(() {
+                      _phoneError = 'Enter a valid 10-digit mobile number.';
+                    });
+                    return;
+                  }
+                  setState(() => _phoneError = null);
+                  unawaited(
+                    _run(
+                      () => flow.customerSendCode(
+                        _phone.text,
+                        channel: OtpChannel.whatsapp,
+                      ),
+                    ),
+                  );
+                },
           secondaryLabel: 'Continue with Google',
-          onSecondary: () => unawaited(flow.skipToHome()),
+          onSecondary: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Google sign-in needs Firebase. Use phone OTP for demos.',
+                ),
+              ),
+            );
+          },
           textLabel: 'Sign up with email',
-          onText: () => unawaited(flow.skipToHome()),
+          onText: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Email OTP is not on this API yet. Use phone OTP for demos.',
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _otpPage(OnboardingController flow, String phone) {
+  Widget _otpPage(
+    OnboardingController flow,
+    String phone,
+    OtpChannel channel,
+    String? devOtp,
+  ) {
     return OnboardingScaffold(
       mark: BrandMarkKind.customer,
       onBack: flow.back,
       onSkip: () => unawaited(flow.skipToHome()),
       children: [
         Text(
-          'WhatsApp check karo',
+          channel == OtpChannel.sms ? 'SMS check karo' : 'WhatsApp check karo',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -186,6 +234,15 @@ class _CustomerOnboardingPagesState
             ],
           ),
         ),
+        if (devOtp != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Dev OTP: $devOtp',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.primary,
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         OtpBoxes(controller: _otp),
         if (_otpError != null) ...[
@@ -205,7 +262,9 @@ class _CustomerOnboardingPagesState
           )
         else
           TextButton(
-            onPressed: _startResend,
+            onPressed: () => unawaited(
+              _run(() => flow.customerSendCode(phone, channel: channel)),
+            ),
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
@@ -218,20 +277,33 @@ class _CustomerOnboardingPagesState
           ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Verify',
-          onPrimary: () {
-            final code = _otp.text.trim();
-            if (code.isNotEmpty && code.length != 6) {
-              setState(() {
-                _otpError = 'That code is incorrect. Try again.';
-              });
-              return;
-            }
-            setState(() => _otpError = null);
-            flow.customerVerify();
-          },
-          textLabel: 'Send via SMS instead',
-          onText: flow.customerVerify,
+          primaryLabel: _busy ? 'Verifying…' : 'Verify',
+          onPrimary: _busy
+              ? () {}
+              : () {
+                  final code = _otp.text.trim();
+                  if (code.isNotEmpty && code.length != 6) {
+                    setState(() {
+                      _otpError = 'That code is incorrect. Try again.';
+                    });
+                    return;
+                  }
+                  setState(() => _otpError = null);
+                  unawaited(_run(() => flow.customerVerify(code)));
+                },
+          textLabel: channel == OtpChannel.sms
+              ? 'Send via WhatsApp instead'
+              : 'Send via SMS instead',
+          onText: () => unawaited(
+            _run(
+              () => flow.customerSendCode(
+                phone,
+                channel: channel == OtpChannel.sms
+                    ? OtpChannel.whatsapp
+                    : OtpChannel.sms,
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -279,11 +351,21 @@ class _CustomerOnboardingPagesState
         ),
         const SizedBox(height: 28),
         OnboardingActions(
-          primaryLabel: 'Save and continue',
-          onPrimary: () {
-            setState(() => _nameError = null);
-            flow.customerSaveProfile(name: _name.text);
-          },
+          primaryLabel: _busy ? 'Saving…' : 'Save and continue',
+          onPrimary: _busy
+              ? () {}
+              : () {
+                  setState(() => _nameError = null);
+                  unawaited(
+                    _run(
+                      () => flow.customerSaveProfile(
+                        name: _name.text,
+                        addressText: _place.text,
+                        labelUi: _label,
+                      ),
+                    ),
+                  );
+                },
         ),
       ],
     );
@@ -307,7 +389,9 @@ class _CustomerOnboardingPagesState
           subtitle: 'Fateh Jang ke desi khaane',
           selected: false,
           leading: const _Bub(icon: GhIcons.forkKnife),
-          onTap: () => unawaited(flow.finish()),
+          onTap: () => unawaited(
+            _run(() => flow.customerFinishWithIntent('food')),
+          ),
         ),
         const SizedBox(height: 10),
         OnboardingTile(
@@ -315,7 +399,9 @@ class _CustomerOnboardingPagesState
           subtitle: 'Ghar ka saman, gaon tak',
           selected: false,
           leading: const _Bub(icon: GhIcons.shoppingBag),
-          onTap: () => unawaited(flow.finish()),
+          onTap: () => unawaited(
+            _run(() => flow.customerFinishWithIntent('mart')),
+          ),
         ),
         const SizedBox(height: 10),
         OnboardingTile(
@@ -323,12 +409,16 @@ class _CustomerOnboardingPagesState
           subtitle: 'Lunch, file, document. Jo ghar reh gaya',
           selected: false,
           leading: const _Bub(icon: GhIcons.package),
-          onTap: () => unawaited(flow.finish()),
+          onTap: () => unawaited(
+            _run(() => flow.customerFinishWithIntent('courier')),
+          ),
         ),
         const SizedBox(height: 28),
         OnboardingActions(
           primaryLabel: 'Continue',
-          onPrimary: () => unawaited(flow.finish()),
+          onPrimary: () => unawaited(
+            _run(() => flow.customerFinishWithIntent('food')),
+          ),
         ),
       ],
     );

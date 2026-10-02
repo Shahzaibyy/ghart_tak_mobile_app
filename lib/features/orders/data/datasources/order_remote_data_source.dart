@@ -1,40 +1,102 @@
-import 'package:attock_xpress/features/orders/data/models/order_model.dart';
+import 'package:attock_xpress/core/network/api_envelope.dart';
+import 'package:attock_xpress/core/utils/money_parse.dart';
+import 'package:attock_xpress/features/orders/domain/entities/order.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_draft.dart';
+import 'package:attock_xpress/features/orders/domain/entities/order_quote.dart';
+import 'package:attock_xpress/features/orders/domain/entities/order_status.dart';
+import 'package:attock_xpress/features/orders/domain/entities/order_type.dart';
 import 'package:dio/dio.dart';
 
-/// HTTP access to orders.
+/// HTTP access to quote / place / get order.
 class OrderRemoteDataSource {
-  /// Creates a data source over the HTTP client.
+  /// Creates a data source over Dio.
   const new(this._dio);
 
   final Dio _dio;
 
-  /// Fetches the order list.
-  Future<List<OrderModel>> listOrders() async {
-    final response = await _dio.get<List<dynamic>>('/orders');
-    final raw = response.data;
-    if (raw is! List) {
-      throw const FormatException('Expected a list of orders');
-    }
-    return raw.map(_decode).toList();
+  /// Prices an order without saving it.
+  Future<OrderQuote> quote(OrderDraft draft) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/orders/quote',
+      data: draft.toQuoteJson(),
+    );
+    final data = unwrapData<Map<String, dynamic>>(response);
+    return OrderQuote.fromJson(data);
   }
 
-  /// Sends a new order.
-  Future<void> placeOrder(OrderDraft draft) {
-    return _dio.post<void>(
+  /// Places an order (idempotent via `client_request_id`).
+  Future<Order> placeOrder(OrderDraft draft) async {
+    final response = await _dio.post<Map<String, dynamic>>(
       '/orders',
-      data: <String, Object?>{
-        'title': draft.title,
-        'delivery_fee': draft.deliveryFee,
-        'payment_method': draft.paymentLabel,
-      },
+      data: draft.toPlaceJson(),
+    );
+    final data = unwrapData<Map<String, dynamic>>(response);
+    return _orderFrom(
+      data,
+      fallbackTitle: draft.title,
+      photoUrl: draft.photoUrl,
     );
   }
 
-  OrderModel _decode(Object? item) {
-    if (item is! Map) {
-      throw const FormatException('Expected an order object');
+  /// Loads one order by id.
+  Future<Order> getOrder(
+    String id, {
+    String? title,
+    String? photoUrl,
+  }) async {
+    final response = await _dio.get<Map<String, dynamic>>('/orders/$id');
+    final data = unwrapData<Map<String, dynamic>>(response);
+    return _orderFrom(
+      data,
+      fallbackTitle: title ?? 'Order',
+      photoUrl: photoUrl,
+    );
+  }
+
+  Order _orderFrom(
+    Map<String, dynamic> json, {
+    required String fallbackTitle,
+    String? photoUrl,
+  }) {
+    final id = json['id'];
+    final type = json['type'];
+    final status = json['status'];
+    final fee = json['delivery_fee'];
+    if (id is! String || type is! String || status is! String) {
+      throw const FormatException('Invalid order payload');
     }
-    return OrderModel.fromJson(Map<String, dynamic>.from(item));
+    final feeValue = switch (fee) {
+      final String s => MoneyParse.amount(s),
+      final num n => n.toDouble(),
+      _ => 0.0,
+    };
+    final items = json['items'];
+    var title = fallbackTitle;
+    if (items is List && items.isNotEmpty) {
+      final first = items.first;
+      if (first is Map && first['item_name'] is String) {
+        title = first['item_name'] as String;
+      }
+    }
+    return Order(
+      id: id,
+      title: title,
+      type: parseOrderType(type),
+      status: _status(status),
+      deliveryFee: feeValue,
+      photoUrl: photoUrl,
+    );
+  }
+
+  OrderStatus _status(String raw) {
+    try {
+      return parseOrderStatus(raw);
+    } on FormatException {
+      return switch (raw) {
+        'preparing' || 'ready' || 'assigned' || 'offered' => const Accepted(),
+        'picked_up' || 'on_the_way' || 'enroute' => const PickedUp(),
+        _ => const Placed(),
+      };
+    }
   }
 }

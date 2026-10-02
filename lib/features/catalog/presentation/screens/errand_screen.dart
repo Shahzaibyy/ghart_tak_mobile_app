@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:attock_xpress/core/config/demo_config.dart';
 import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
+import 'package:attock_xpress/core/utils/geo_point.dart';
 import 'package:attock_xpress/core/utils/money.dart';
 import 'package:attock_xpress/core/widgets/gh_button.dart';
 import 'package:attock_xpress/features/catalog/domain/entities/feed_category.dart';
@@ -206,8 +208,16 @@ class _ErrandScreenState extends ConsumerState<ErrandScreen> {
       OrderDraft(
         title: feedCategoryLabel(widget.category),
         type: orderTypeFor(widget.category),
+        zoneId: DemoConfig.attockZoneId,
+        drop: const GeoPoint(
+          lat: DemoConfig.demoDropLat,
+          lng: DemoConfig.demoDropLng,
+        ),
+        dropAddress: DemoConfig.demoDropAddress,
+        paymentMethod: 'cod',
+        clientRequestId: 'req-errand-${DateTime.now().millisecondsSinceEpoch}',
+        items: const [],
         deliveryFee: _quoteRupees,
-        photoUrl: null,
         paymentLabel: 'Cash on delivery',
       ),
     );

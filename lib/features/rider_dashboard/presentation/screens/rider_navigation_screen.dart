@@ -5,8 +5,8 @@ import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/utils/money.dart';
 import 'package:attock_xpress/core/widgets/gh_avatar.dart';
 import 'package:attock_xpress/core/widgets/gh_button.dart';
+import 'package:attock_xpress/features/map/presentation/rider_task_map.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/entities/rider_task.dart';
-import 'package:attock_xpress/features/rider_dashboard/presentation/widgets/route_sketch.dart';
 import 'package:flutter/material.dart';
 
 /// Active trip. Pickup first, then the drop-off and the customer code.
@@ -59,7 +59,7 @@ class _RiderNavigationScreenState extends State<RiderNavigationScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(child: RouteSketch(toDropoff: dropoff)),
+          Positioned.fill(child: RiderTaskMap(toDropoff: dropoff)),
           SafeArea(
             child: Column(
               children: [

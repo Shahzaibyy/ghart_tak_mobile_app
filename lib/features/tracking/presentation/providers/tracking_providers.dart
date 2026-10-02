@@ -2,27 +2,32 @@ import 'dart:async';
 
 import 'package:attock_xpress/core/config/app_config.dart';
 import 'package:attock_xpress/core/storage/storage_providers.dart';
+import 'package:attock_xpress/core/storage/token_keys.dart';
 import 'package:attock_xpress/features/tracking/data/datasources/location_socket.dart';
 import 'package:attock_xpress/features/tracking/data/geocode_lookup.dart';
-import 'package:attock_xpress/features/tracking/data/sample_tracking.dart';
+import 'package:attock_xpress/features/tracking/data/repositories/tracking_repository_impl.dart';
 import 'package:attock_xpress/features/tracking/domain/entities/rider_location.dart';
 import 'package:attock_xpress/features/tracking/domain/repositories/tracking_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'tracking_providers.g.dart';
 
-/// Live-location socket.
+/// Live-location socket (Bearer auth per OpenAPI).
 @Riverpod(keepAlive: true)
 LocationSocket locationSocket(Ref ref) {
-  final socket = LocationSocket(baseUri: Uri.parse(AppConfig.wsBaseUrl));
+  final tokens = ref.watch(tokenStoreProvider);
+  final socket = LocationSocket(
+    baseUri: Uri.parse(AppConfig.wsBaseUrl),
+    readAccessToken: () => tokens.read(TokenKeys.access),
+  );
   ref.onDispose(() => unawaited(socket.close()));
   return socket;
 }
 
-/// Tracking repository.
+/// Tracking repository: WS first, sample path fallback for demos.
 @Riverpod(keepAlive: true)
 TrackingRepository trackingRepository(Ref ref) {
-  return const SampleTrackingRepository();
+  return TrackingRepositoryImpl(socket: ref.watch(locationSocketProvider));
 }
 
 /// Local geocode cache used before any Maps geocode request.
