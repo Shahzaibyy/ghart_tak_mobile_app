@@ -7,7 +7,7 @@ import 'package:attock_xpress/features/map/presentation/tracking_map.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_status.dart';
 import 'package:flutter/material.dart';
 
-/// Live order card over the Mapbox tracking map.
+/// Live order card over the tracking map (customer).
 class TrackingScreen extends StatelessWidget {
   /// Creates the tracking screen for [orderId].
   const new({
@@ -31,7 +31,9 @@ class TrackingScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(child: TrackingMap(orderId: orderId)),
+          Positioned.fill(
+            child: TrackingMap(orderId: orderId, status: status),
+          ),
           SafeArea(
             child: Column(
               children: [
@@ -86,6 +88,8 @@ class _Sheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final shortId = orderId.length > 8 ? orderId.substring(0, 8) : orderId;
+    final showRider = status is Accepted || status is PickedUp;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: DecoratedBox(
@@ -110,7 +114,10 @@ class _Sheet extends StatelessWidget {
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                   ),
-                  Text(orderId, style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    '#$shortId',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -124,10 +131,51 @@ class _Sheet extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _Stepper(status: status),
-              const SizedBox(height: 16),
-              const _Rider(),
+              if (showRider) ...[
+                const SizedBox(height: 16),
+                const _Rider(),
+              ] else if (status is Placed) ...[
+                const SizedBox(height: 16),
+                const _FindingRider(),
+              ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FindingRider extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.tint.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Looking for a nearby rider…',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -226,7 +274,7 @@ String _detail(OrderStatus status, String title) {
   return switch (status) {
     Placed() => 'We are matching $title with a rider',
     Accepted() => 'Rider is heading to $title',
-    PickedUp() => 'Estimated at your door by 2:45 PM',
+    PickedUp() => 'Rider is on the way to your door',
     Delivered() => '$title has arrived',
     Cancelled() => 'This order was cancelled',
   };
