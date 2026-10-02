@@ -24,3 +24,16 @@ plugins {
 }
 
 include(":app")
+
+// mapbox_maps_flutter_mobile 3.0.0 skips `kotlin-android` on AGP 9
+// (expects built-in Kotlin), but Flutter keeps `android.builtInKotlin=false`.
+// Apply the plugin as soon as the Android library plugin is applied so the
+// package's `kotlin { }` block can resolve.
+gradle.beforeProject {
+    if (name != "mapbox_maps_flutter_mobile") return@beforeProject
+    pluginManager.withPlugin("com.android.library") {
+        if (!pluginManager.hasPlugin("org.jetbrains.kotlin.android")) {
+            pluginManager.apply("org.jetbrains.kotlin.android")
+        }
+    }
+}

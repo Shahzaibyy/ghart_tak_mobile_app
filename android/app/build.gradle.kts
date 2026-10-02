@@ -14,7 +14,8 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "com.example.attock_xpress"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android requires API 37; Flutter default is still 36.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

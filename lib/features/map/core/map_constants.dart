@@ -28,4 +28,11 @@ abstract final class MapConstants {
 
   static const routeSourceId = 'route-src';
   static const routeLayerId = 'route-layer';
+  static const routeCasingLayerId = 'route-casing-layer';
+  static const routeTravelledSourceId = 'route-travelled-src';
+  static const routeTravelledLayerId = 'route-travelled-layer';
+
+  /// Live-tracking camera clamp (never town-level).
+  static const trackingMinZoom = 14.0;
+  static const trackingMaxZoom = 17.0;
 }

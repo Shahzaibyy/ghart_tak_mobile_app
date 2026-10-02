@@ -7,9 +7,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 /// Desktop / unsupported-platform map using Mapbox raster tiles (or OSM).
-///
-/// `mapbox_maps_flutter` has no Linux plugin — this is the Linux showcase path
-/// so seed merchant pins and tracking still show a real basemap.
 class DesktopFallbackMap extends StatelessWidget {
   /// Creates a fallback map.
   const new({
@@ -17,6 +14,7 @@ class DesktopFallbackMap extends StatelessWidget {
     this.zoom = MapConstants.defaultZoom,
     this.markers = const [],
     this.route = const [],
+    this.travelledRoute = const [],
     this.onMapEvent,
     this.mapController,
     super.key,
@@ -26,6 +24,7 @@ class DesktopFallbackMap extends StatelessWidget {
   final double zoom;
   final List<DesktopMapMarker> markers;
   final List<GeoPoint> route;
+  final List<GeoPoint> travelledRoute;
   final void Function(MapEvent event)? onMapEvent;
   final MapController? mapController;
 
@@ -37,7 +36,10 @@ class DesktopFallbackMap extends StatelessWidget {
       mapController: mapController,
       options: MapOptions(
         initialCenter: LatLng(center.lat, center.lng),
-        initialZoom: zoom,
+        initialZoom: zoom.clamp(
+          MapConstants.trackingMinZoom,
+          MapConstants.trackingMaxZoom,
+        ),
         minZoom: MapConstants.minZoom,
         maxZoom: MapConstants.maxZoom,
         onMapEvent: onMapEvent,
@@ -59,41 +61,160 @@ class DesktopFallbackMap extends StatelessWidget {
           PolylineLayer(
             polylines: [
               Polyline(
-                points: [
-                  for (final p in route) LatLng(p.lat, p.lng),
-                ],
+                points: [for (final p in route) LatLng(p.lat, p.lng)],
+                color: AppColors.text.withValues(alpha: 0.45),
+                strokeWidth: 8,
+                strokeCap: StrokeCap.round,
+                strokeJoin: StrokeJoin.round,
+              ),
+              Polyline(
+                points: [for (final p in route) LatLng(p.lat, p.lng)],
                 color: AppColors.primary,
-                strokeWidth: 4,
+                strokeWidth: 5,
+                strokeCap: StrokeCap.round,
+                strokeJoin: StrokeJoin.round,
+              ),
+            ],
+          ),
+        if (travelledRoute.length >= 2)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: [
+                  for (final p in travelledRoute) LatLng(p.lat, p.lng),
+                ],
+                color: const Color(0xFFA8A29E),
+                strokeWidth: 5,
+                strokeCap: StrokeCap.round,
+                strokeJoin: StrokeJoin.round,
               ),
             ],
           ),
         if (markers.isNotEmpty)
           MarkerLayer(
             markers: [
-              for (final m in markers)
-                Marker(
-                  point: LatLng(m.point.lat, m.point.lng),
-                  width: 36,
-                  height: 36,
-                  child: Icon(m.icon, color: m.color, size: 32),
-                ),
+              for (final m in markers) _marker(m),
             ],
           ),
       ],
     );
   }
+
+  Marker _marker(DesktopMapMarker m) {
+    final size = m.ring ? 44.0 : 40.0;
+    return Marker(
+      point: LatLng(m.point.lat, m.point.lng),
+      width: m.label == null ? size : 88,
+      height: m.label == null ? size : 64,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (m.label != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                boxShadow: const [AppShadow.floating],
+              ),
+              child: Text(
+                m.label!,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+          if (m.ring)
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primary, width: 3),
+                boxShadow: const [AppShadow.floating],
+              ),
+              child: Icon(m.icon, color: AppColors.primary, size: 22),
+            )
+          else
+            _PulseIcon(
+              pulse: m.pulse,
+              child: Icon(m.icon, color: m.color, size: 32),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-/// A simple coloured pin for [DesktopFallbackMap].
+class _PulseIcon extends StatefulWidget {
+  const _PulseIcon({required this.child, required this.pulse});
+  final Widget child;
+  final bool pulse;
+
+  @override
+  State<_PulseIcon> createState() => _PulseIconState();
+}
+
+class _PulseIconState extends State<_PulseIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    if (widget.pulse) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PulseIcon oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.pulse && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.pulse && _controller.isAnimating) {
+      _controller.stop();
+      _controller.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.pulse) return widget.child;
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.55, end: 1).animate(_controller),
+      child: widget.child,
+    );
+  }
+}
+
+/// A coloured pin for [DesktopFallbackMap].
 class DesktopMapMarker {
   /// Creates a marker.
   const new({
     required this.point,
     this.color = AppColors.primary,
     this.icon = Icons.location_on,
+    this.label,
+    this.pulse = false,
+    this.ring = false,
   });
 
   final GeoPoint point;
   final Color color;
   final IconData icon;
+  final String? label;
+  final bool pulse;
+  final bool ring;
 }

@@ -185,14 +185,15 @@ class _Sheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: dark ? AppColors.darkSurface : AppColors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: const [AppShadow.floating],
-      ),
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    return Material(
+      color: dark ? AppColors.darkSurface : AppColors.surface,
+      elevation: 8,
+      shadowColor: AppColors.text.withValues(alpha: 0.2),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,

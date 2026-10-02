@@ -214,7 +214,7 @@ class _Rider extends StatelessWidget {
 
 String _headline(OrderStatus status) {
   return switch (status) {
-    Placed() => 'Soon',
+    Placed() => 'Finding rider',
     Accepted() => '8 min',
     PickedUp() => '12 min',
     Delivered() => 'Done',
