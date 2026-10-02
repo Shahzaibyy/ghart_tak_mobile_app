@@ -8,12 +8,12 @@ part of 'profile_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Profile repository.
+/// Live profile repository (`GET /users/me`).
 
 @ProviderFor(profileRepository)
 final profileRepositoryProvider = ProfileRepositoryProvider._();
 
-/// Profile repository.
+/// Live profile repository (`GET /users/me`).
 
 final class ProfileRepositoryProvider
     extends
@@ -23,7 +23,7 @@ final class ProfileRepositoryProvider
           ProfileRepository
         >
     with $Provider<ProfileRepository> {
-  /// Profile repository.
+  /// Live profile repository (`GET /users/me`).
   ProfileRepositoryProvider._()
     : super(
         from: null,
@@ -58,7 +58,7 @@ final class ProfileRepositoryProvider
   }
 }
 
-String _$profileRepositoryHash() => r'95c3018d7ad06bf6a5e97d5dfe7064ae6675200e';
+String _$profileRepositoryHash() => r'4e27c7f0559bc685ae35c00edd6b4e4b71b21323';
 
 /// Profile use case.
 
@@ -106,15 +106,15 @@ final class ReadProfileProvider
 
 String _$readProfileHash() => r'126a0882384d08273b057a551d44fb3d5ccdc8b8';
 
-/// Signed-in profile.
+/// Signed-in profile from the API.
 
 @ProviderFor(ProfileController)
 final profileControllerProvider = ProfileControllerProvider._();
 
-/// Signed-in profile.
+/// Signed-in profile from the API.
 final class ProfileControllerProvider
     extends $AsyncNotifierProvider<ProfileController, UserProfile> {
-  /// Signed-in profile.
+  /// Signed-in profile from the API.
   ProfileControllerProvider._()
     : super(
         from: null,
@@ -136,7 +136,7 @@ final class ProfileControllerProvider
 
 String _$profileControllerHash() => r'51840eb246061c902faefd9c315aa97fd92dc7c5';
 
-/// Signed-in profile.
+/// Signed-in profile from the API.
 
 abstract class _$ProfileController extends $AsyncNotifier<UserProfile> {
   FutureOr<UserProfile> build();

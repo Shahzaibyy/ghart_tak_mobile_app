@@ -8,15 +8,15 @@ part of 'onboarding_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Walks the Gen Z signup flow without requiring real credentials.
+/// Walks the Gen Z signup flow against the live onboarding APIs.
 
 @ProviderFor(OnboardingController)
 final onboardingControllerProvider = OnboardingControllerProvider._();
 
-/// Walks the Gen Z signup flow without requiring real credentials.
+/// Walks the Gen Z signup flow against the live onboarding APIs.
 final class OnboardingControllerProvider
     extends $NotifierProvider<OnboardingController, OnboardingStep> {
-  /// Walks the Gen Z signup flow without requiring real credentials.
+  /// Walks the Gen Z signup flow against the live onboarding APIs.
   OnboardingControllerProvider._()
     : super(
         from: null,
@@ -45,9 +45,9 @@ final class OnboardingControllerProvider
 }
 
 String _$onboardingControllerHash() =>
-    r'49fc1bf2c93106dee29ad5ba59148ab856279309';
+    r'6b82b2cbd89a943b9aaff1945f9b8b330e30bf80';
 
-/// Walks the Gen Z signup flow without requiring real credentials.
+/// Walks the Gen Z signup flow against the live onboarding APIs.
 
 abstract class _$OnboardingController extends $Notifier<OnboardingStep> {
   OnboardingStep build();

@@ -149,7 +149,7 @@ final class CheckoutControllerProvider
 }
 
 String _$checkoutControllerHash() =>
-    r'c89f3d571062e99319b851afd97e73aad12de128';
+    r'c389ee22fd54e9a341cf6e12d5edea6c6b0c86e2';
 
 /// Checkout progress. The basket itself stays on [CartController].
 

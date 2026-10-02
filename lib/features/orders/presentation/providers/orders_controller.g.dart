@@ -8,18 +8,18 @@ part of 'orders_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Order repository.
+/// Order repository wired to quote / place / get.
 
 @ProviderFor(orderRepository)
 final orderRepositoryProvider = OrderRepositoryProvider._();
 
-/// Order repository.
+/// Order repository wired to quote / place / get.
 
 final class OrderRepositoryProvider
     extends
         $FunctionalProvider<OrderRepository, OrderRepository, OrderRepository>
     with $Provider<OrderRepository> {
-  /// Order repository.
+  /// Order repository wired to quote / place / get.
   OrderRepositoryProvider._()
     : super(
         from: null,
@@ -53,7 +53,7 @@ final class OrderRepositoryProvider
   }
 }
 
-String _$orderRepositoryHash() => r'96f91abf0200ccc7ad21a288585b82bc427a962e';
+String _$orderRepositoryHash() => r'39db4341cc26de36acf1a84fc46996a04801f123';
 
 /// List-orders use case.
 

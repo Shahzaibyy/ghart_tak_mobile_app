@@ -8,12 +8,12 @@ part of 'catalog_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Catalog repository. Sample data until the merchant API is live.
+/// Catalog repository wired to the live zone merchants + menus.
 
 @ProviderFor(catalogRepository)
 final catalogRepositoryProvider = CatalogRepositoryProvider._();
 
-/// Catalog repository. Sample data until the merchant API is live.
+/// Catalog repository wired to the live zone merchants + menus.
 
 final class CatalogRepositoryProvider
     extends
@@ -23,7 +23,7 @@ final class CatalogRepositoryProvider
           CatalogRepository
         >
     with $Provider<CatalogRepository> {
-  /// Catalog repository. Sample data until the merchant API is live.
+  /// Catalog repository wired to the live zone merchants + menus.
   CatalogRepositoryProvider._()
     : super(
         from: null,
@@ -58,7 +58,7 @@ final class CatalogRepositoryProvider
   }
 }
 
-String _$catalogRepositoryHash() => r'393f9b92fa0ff2e93ebb58a2cb73759c82e83b6f';
+String _$catalogRepositoryHash() => r'1f1eacec3ebc620a74a61f21a21834f3798858eb';
 
 /// Browse use case.
 
@@ -135,7 +135,7 @@ final class CatalogControllerProvider
   CatalogController create() => CatalogController();
 }
 
-String _$catalogControllerHash() => r'250376ef2d9dd937dfbf97795d1677e6ed062916';
+String _$catalogControllerHash() => r'4b30eec5dd58bff683cfca47923fcbc77e366ece';
 
 /// Filtered home feed.
 

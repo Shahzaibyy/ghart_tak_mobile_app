@@ -4,7 +4,9 @@ import 'package:attock_xpress/core/config/demo_config.dart';
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/widgets/brand_mark.dart';
+import 'package:attock_xpress/features/auth/domain/entities/app_role.dart';
 import 'package:attock_xpress/features/auth/domain/phone_number.dart';
+import 'package:attock_xpress/features/auth/presentation/onboarding/demo_seed_chips.dart';
 import 'package:attock_xpress/features/auth/presentation/onboarding/onboarding_step.dart';
 import 'package:attock_xpress/features/auth/presentation/onboarding/onboarding_widgets.dart';
 import 'package:attock_xpress/features/auth/presentation/providers/onboarding_controller.dart';
@@ -131,8 +133,16 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
         ),
         const SizedBox(height: 8),
         Text(
-          "Enter your mobile number. We'll confirm it with a WhatsApp code.",
+          "Enter your mobile number, or tap a seeded rider below (demo, no SMS).",
           style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 16),
+        DemoSeedChips(
+          role: const RiderRole(),
+          onSelect: (account) {
+            _phone.text = account.phone.replaceFirst(RegExp(r'^0'), '');
+            unawaited(_run(() => flow.demoQuickLogin(account)));
+          },
         ),
         const SizedBox(height: 20),
         OnboardingField(

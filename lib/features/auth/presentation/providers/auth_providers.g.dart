@@ -52,7 +52,7 @@ final class AuthRepositoryProvider
   }
 }
 
-String _$authRepositoryHash() => r'539b5242ddeb5e421a61cfc35193cb02f2d3853a';
+String _$authRepositoryHash() => r'f9855ed394d4a78ff2531bca86d85898ad7666e0';
 
 /// OTP request use case.
 

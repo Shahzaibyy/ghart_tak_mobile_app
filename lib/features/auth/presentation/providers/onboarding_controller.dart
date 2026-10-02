@@ -7,6 +7,7 @@ import 'package:attock_xpress/features/auth/presentation/providers/auth_controll
 import 'package:attock_xpress/features/auth/presentation/providers/auth_providers.dart';
 import 'package:attock_xpress/features/onboarding/data/customer_onboarding_api.dart';
 import 'package:attock_xpress/features/onboarding/presentation/onboarding_providers.dart';
+import 'package:attock_xpress/features/profile/presentation/providers/profile_controller.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'onboarding_controller.g.dart';
@@ -59,6 +60,28 @@ class OnboardingController extends _$OnboardingController {
     state = switch (role) {
       OnboardingRole.customer => const CustomerPhoneStep(),
       OnboardingRole.rider => const RiderPhoneStep(),
+    };
+  }
+
+  /// One-tap Fateh Jang seed login → enters the app with a real session.
+  Future<String?> demoQuickLogin(DemoAccount account) async {
+    _busy = true;
+    _error = null;
+    _role = account.role is RiderRole
+        ? OnboardingRole.rider
+        : OnboardingRole.customer;
+    final result = await ref.read(authRepositoryProvider).demoLogin(
+          phone: account.phone,
+          role: account.role,
+        );
+    _busy = false;
+    return switch (result) {
+      Success(:final value) => () {
+        ref.read(authControllerProvider.notifier).adopt(value);
+        ref.invalidate(profileControllerProvider);
+        return null;
+      }(),
+      Err(:final failure) => failure.message,
     };
   }
 
@@ -116,6 +139,11 @@ class OnboardingController extends _$OnboardingController {
     return switch (result) {
       Success(:final value) => () {
         ref.read(authControllerProvider.notifier).adopt(value);
+        ref.invalidate(profileControllerProvider);
+        // Seeded customers already have a name — enter the app.
+        if (value.user.name != null && value.user.name!.trim().isNotEmpty) {
+          return null;
+        }
         state = const CustomerProfileStep();
         return null;
       }(),
@@ -129,7 +157,7 @@ class OnboardingController extends _$OnboardingController {
     required String addressText,
     required String labelUi,
   }) async {
-    final label = name.trim().isEmpty ? 'Ayesha' : name.trim();
+    final label = name.trim().isEmpty ? 'Customer' : name.trim();
     _busy = true;
     final result = await ref.read(customerOnboardingApiProvider).completeOnboarding(
       name: label,
@@ -245,6 +273,11 @@ class OnboardingController extends _$OnboardingController {
     return switch (result) {
       Success(:final value) => () {
         ref.read(authControllerProvider.notifier).adopt(value);
+        ref.invalidate(profileControllerProvider);
+        // Seeded riders are already approved — enter the app.
+        if (value.user.name != null && value.user.name!.trim().isNotEmpty) {
+          return null;
+        }
         state = const RiderDetailsStep();
         return null;
       }(),

@@ -36,7 +36,7 @@ final class AuthFlowProvider
   AuthFlow create() => AuthFlow();
 }
 
-String _$authFlowHash() => r'5f2d29ab542271171e8825cfefe23fa54525138f';
+String _$authFlowHash() => r'b1bf4226b67a62b91971ddb4e6d4353ed13007a5';
 
 /// Login steps modeled as async state.
 

@@ -8,17 +8,17 @@ part of 'tracking_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Live-location socket.
+/// Live-location socket (Bearer auth per OpenAPI).
 
 @ProviderFor(locationSocket)
 final locationSocketProvider = LocationSocketProvider._();
 
-/// Live-location socket.
+/// Live-location socket (Bearer auth per OpenAPI).
 
 final class LocationSocketProvider
     extends $FunctionalProvider<LocationSocket, LocationSocket, LocationSocket>
     with $Provider<LocationSocket> {
-  /// Live-location socket.
+  /// Live-location socket (Bearer auth per OpenAPI).
   LocationSocketProvider._()
     : super(
         from: null,
@@ -52,14 +52,14 @@ final class LocationSocketProvider
   }
 }
 
-String _$locationSocketHash() => r'a1522d22c43a741a90bac76ef661a673d88c5925';
+String _$locationSocketHash() => r'273bc42f6744429b6ecdacc71332f1d1937b2a0f';
 
-/// Tracking repository.
+/// Tracking repository: WS first, sample path fallback for demos.
 
 @ProviderFor(trackingRepository)
 final trackingRepositoryProvider = TrackingRepositoryProvider._();
 
-/// Tracking repository.
+/// Tracking repository: WS first, sample path fallback for demos.
 
 final class TrackingRepositoryProvider
     extends
@@ -69,7 +69,7 @@ final class TrackingRepositoryProvider
           TrackingRepository
         >
     with $Provider<TrackingRepository> {
-  /// Tracking repository.
+  /// Tracking repository: WS first, sample path fallback for demos.
   TrackingRepositoryProvider._()
     : super(
         from: null,
@@ -105,7 +105,7 @@ final class TrackingRepositoryProvider
 }
 
 String _$trackingRepositoryHash() =>
-    r'6d02f4bba9ddc2f309f3d6c337c5fcda6b6a12a7';
+    r'754352cf860f182bbe4fe7afc40f1f0979828e79';
 
 /// Local geocode cache used before any Maps geocode request.
 
