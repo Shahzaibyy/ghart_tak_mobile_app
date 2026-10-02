@@ -53,7 +53,7 @@ OrderStatus parseOrderStatus(String raw) {
 /// Customer-facing label for [status].
 String orderStatusLabel(OrderStatus status) {
   return switch (status) {
-    Placed() => 'Order placed',
+    Placed() => 'Waiting for kitchen / rider',
     Accepted() => 'Rider on the way to pickup',
     PickedUp() => 'On the way to you',
     Delivered() => 'Delivered',

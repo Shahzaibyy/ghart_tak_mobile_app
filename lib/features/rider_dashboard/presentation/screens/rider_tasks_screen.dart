@@ -42,19 +42,20 @@ class _Body extends ConsumerWidget {
     return switch (state.phase) {
       Waiting() => _Ready(
         online: state.isOnline,
+        hint: state.hint,
         onRequest: () => unawaited(notifier.presentOffer()),
       ),
       Offering(:final task, :final secondsLeft) => RiderOfferScreen(
         task: task,
         secondsLeft: secondsLeft,
-        onDecline: notifier.decline,
-        onAccept: notifier.accept,
+        onDecline: () => unawaited(notifier.decline()),
+        onAccept: () => unawaited(notifier.accept()),
       ),
       OfferExpired(:final task) => RiderOfferScreen(
         task: task,
         secondsLeft: null,
-        onDecline: notifier.decline,
-        onAccept: notifier.decline,
+        onDecline: () => unawaited(notifier.decline()),
+        onAccept: () => unawaited(notifier.decline()),
       ),
       Riding(:final task) => _Resume(task: task, onResume: onResume),
     };
@@ -62,16 +63,23 @@ class _Body extends ConsumerWidget {
 }
 
 class _Ready extends StatelessWidget {
-  const new({required this.online, required this.onRequest});
+  const new({
+    required this.online,
+    required this.onRequest,
+    this.hint,
+  });
 
   final bool online;
   final VoidCallback onRequest;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
-    final title = online ? 'A request is nearby' : 'You are offline';
+    final title = online ? 'Listening for live offers' : 'You are offline';
     final body = online
-        ? 'Tandoor House on Mall Road is ready for a rider.'
+        ? 'Offers come from GET /riders/offers after a real customer order is '
+            'ready_for_pickup and dispatched. This is not the old sample '
+            '“Tandoor House” card.'
         : 'Go online from Home before you take a task.';
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -81,9 +89,22 @@ class _Ready extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
         Text(body, style: Theme.of(context).textTheme.bodySmall),
+        if (hint != null) ...[
+          const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.peach.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(hint!, style: Theme.of(context).textTheme.bodySmall),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         GhButton(
-          label: 'See incoming request',
+          label: 'Check for live offer',
           onPressed: online ? onRequest : null,
         ),
       ],
@@ -110,12 +131,17 @@ class _Resume extends StatelessWidget {
           '${task.pickupDetail} → ${task.dropoffDetail}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
+        const SizedBox(height: 4),
+        Text(
+          'Order #${task.orderCode}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: 8),
         Text(
           rupees(task.payoutRupees),
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: AppColors.success,
-          ),
+                color: AppColors.success,
+              ),
         ),
         const SizedBox(height: 20),
         GhButton(label: 'Open navigation', onPressed: onResume),

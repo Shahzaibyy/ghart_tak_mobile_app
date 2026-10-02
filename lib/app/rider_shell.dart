@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/entities/rider_task.dart';
 import 'package:attock_xpress/features/rider_dashboard/presentation/providers/rider_dashboard_controller.dart';
@@ -83,7 +85,9 @@ class _RiderShellState extends ConsumerState<RiderShell> {
         _index = 1;
       }),
       onPickedUp: () {
-        ref.read(riderDashboardControllerProvider.notifier).markPickedUp();
+        unawaited(
+          ref.read(riderDashboardControllerProvider.notifier).markPickedUp(),
+        );
       },
       onConfirm: (otp) {
         return ref

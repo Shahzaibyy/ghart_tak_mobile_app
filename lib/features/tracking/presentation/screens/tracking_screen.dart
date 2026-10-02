@@ -1,14 +1,22 @@
 import 'dart:async';
 
+import 'package:attock_xpress/core/config/app_config.dart';
+import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/widgets/gh_avatar.dart';
+import 'package:attock_xpress/core/widgets/gh_button.dart';
 import 'package:attock_xpress/features/map/presentation/tracking_map.dart';
+import 'package:attock_xpress/features/orders/data/demo_merchant_advance.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_status.dart';
+import 'package:attock_xpress/features/orders/presentation/providers/orders_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Live order card over the tracking map (customer).
-class TrackingScreen extends StatelessWidget {
+///
+/// Polls `GET /orders/{id}` so kitchen / rider status updates appear.
+class TrackingScreen extends ConsumerStatefulWidget {
   /// Creates the tracking screen for [orderId].
   const new({
     required this.orderId,
@@ -23,8 +31,64 @@ class TrackingScreen extends StatelessWidget {
   /// Merchant or errand name.
   final String title;
 
-  /// How far the order has moved.
+  /// Initial status when the screen opens.
   final OrderStatus status;
+
+  @override
+  ConsumerState<TrackingScreen> createState() => _TrackingScreenState();
+}
+
+class _TrackingScreenState extends ConsumerState<TrackingScreen> {
+  late OrderStatus _status = widget.status;
+  Timer? _poll;
+  var _advancing = false;
+  String? _advanceNote;
+
+  @override
+  void initState() {
+    super.initState();
+    _poll = Timer.periodic(const Duration(seconds: 3), (_) {
+      unawaited(_refresh());
+    });
+    unawaited(_refresh());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    final result =
+        await ref.read(orderRepositoryProvider).getOrder(widget.orderId);
+    if (!mounted) return;
+    switch (result) {
+      case Success(:final value):
+        if (value.status.runtimeType != _status.runtimeType) {
+          setState(() => _status = value.status);
+        }
+      case Err():
+        break;
+    }
+  }
+
+  Future<void> _advanceMerchant() async {
+    setState(() {
+      _advancing = true;
+      _advanceNote = null;
+    });
+    final note =
+        await const DemoMerchantAdvance().advanceToReady(widget.orderId);
+    if (!mounted) return;
+    setState(() {
+      _advancing = false;
+      _advanceNote = note ??
+          'Kitchen ready + dispatch requested. '
+              'Open the rider app as Usman and check for a live offer.';
+    });
+    await _refresh();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +96,23 @@ class TrackingScreen extends StatelessWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: TrackingMap(orderId: orderId, status: status),
+            child: TrackingMap(orderId: widget.orderId, status: _status),
           ),
           SafeArea(
             child: Column(
               children: [
-                _Bar(title: title),
+                _Bar(title: widget.title),
                 const Spacer(),
-                _Sheet(title: title, status: status, orderId: orderId),
+                _Sheet(
+                  title: widget.title,
+                  status: _status,
+                  orderId: widget.orderId,
+                  advancing: _advancing,
+                  advanceNote: _advanceNote,
+                  onAdvance: AppConfig.isDemo && _status is Placed
+                      ? () => unawaited(_advanceMerchant())
+                      : null,
+                ),
               ],
             ),
           ),
@@ -79,11 +152,17 @@ class _Sheet extends StatelessWidget {
     required this.title,
     required this.status,
     required this.orderId,
+    required this.advancing,
+    required this.advanceNote,
+    required this.onAdvance,
   });
 
   final String title;
   final OrderStatus status;
   final String orderId;
+  final bool advancing;
+  final String? advanceNote;
+  final VoidCallback? onAdvance;
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +216,22 @@ class _Sheet extends StatelessWidget {
               ] else if (status is Placed) ...[
                 const SizedBox(height: 16),
                 const _FindingRider(),
+                if (onAdvance != null) ...[
+                  const SizedBox(height: 12),
+                  GhButton(
+                    label: advancing
+                        ? 'Advancing kitchen…'
+                        : 'Demo: mark kitchen ready + dispatch',
+                    onPressed: advancing ? null : onAdvance,
+                  ),
+                ],
+                if (advanceNote != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    advanceNote!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ],
             ],
           ),
@@ -171,7 +266,8 @@ class _FindingRider extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Looking for a nearby rider…',
+                'Kitchen must accept → prepare → ready, then dispatch '
+                'creates a rider offer. Status refreshes every few seconds.',
                 style: Theme.of(context).textTheme.labelLarge,
               ),
             ),
@@ -230,29 +326,29 @@ class _Rider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const GhAvatar(name: 'Tariq Mahmood', online: true),
+        const GhAvatar(name: 'Usman Ali', online: true),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Tariq Mahmood',
+                'Usman Ali',
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               Text(
-                'Honda 125 · 4.9',
+                'Honda 125 · Fateh Jang',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
         ),
         IconButton(
-          onPressed: () => _sheet(context, 'Message Tariq. This is a preview.'),
+          onPressed: () => _sheet(context, 'Message rider. Preview only.'),
           icon: const Icon(GhIcons.chatCircle),
         ),
         IconButton(
-          onPressed: () => _sheet(context, 'Calling Tariq. This is a preview.'),
+          onPressed: () => _sheet(context, 'Calling rider. Preview only.'),
           icon: const Icon(GhIcons.phone),
         ),
       ],
@@ -272,7 +368,7 @@ String _headline(OrderStatus status) {
 
 String _detail(OrderStatus status, String title) {
   return switch (status) {
-    Placed() => 'We are matching $title with a rider',
+    Placed() => 'Waiting for $title / a nearby rider',
     Accepted() => 'Rider is heading to $title',
     PickedUp() => 'Rider is on the way to your door',
     Delivered() => '$title has arrived',

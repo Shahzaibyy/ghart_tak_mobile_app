@@ -7,6 +7,7 @@ class RiderDashboardState {
     required this.isOnline,
     required this.pendingSyncCount,
     this.phase = const Waiting(),
+    this.hint,
   });
 
   /// Whether the rider is accepting tasks.
@@ -18,16 +19,22 @@ class RiderDashboardState {
   /// Waiting, being offered a task, or on a trip.
   final RiderPhase phase;
 
+  /// Empty-offers / dispatch guidance shown on Tasks.
+  final String? hint;
+
   /// Returns a copy with the provided fields replaced.
   RiderDashboardState copyWith({
     bool? isOnline,
     int? pendingSyncCount,
     RiderPhase? phase,
+    String? hint,
+    bool clearHint = false,
   }) {
     return RiderDashboardState(
       isOnline: isOnline ?? this.isOnline,
       pendingSyncCount: pendingSyncCount ?? this.pendingSyncCount,
       phase: phase ?? this.phase,
+      hint: clearHint ? null : (hint ?? this.hint),
     );
   }
 }

@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:attock_xpress/core/config/demo_config.dart';
 import 'package:attock_xpress/core/errors/failure.dart';
 import 'package:attock_xpress/core/errors/result.dart';
+import 'package:attock_xpress/core/network/network_providers.dart';
 import 'package:attock_xpress/core/storage/hive_boxes.dart';
+import 'package:attock_xpress/features/rider_dashboard/data/datasources/rider_remote_data_source.dart';
 import 'package:attock_xpress/features/rider_dashboard/data/offline_action_queue.dart';
-import 'package:attock_xpress/features/rider_dashboard/data/sample_rider.dart';
+import 'package:attock_xpress/features/rider_dashboard/data/repositories/rider_repository_impl.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/entities/queued_action.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/entities/rider_dashboard_state.dart';
 import 'package:attock_xpress/features/rider_dashboard/domain/entities/rider_task.dart';
@@ -28,10 +31,12 @@ OfflineActionQueue offlineActionQueue(Ref ref) {
   return OfflineActionQueue(box: Hive.box<String>(HiveBoxes.pendingActions));
 }
 
-/// Rider repository.
+/// Live rider repository over `/riders/*`.
 @Riverpod(keepAlive: true)
 RiderRepository riderRepository(Ref ref) {
-  return const SampleRiderRepository();
+  return RiderRepositoryImpl(
+    RiderRemoteDataSource(ref.watch(dioProvider)),
+  );
 }
 
 /// Availability use case.
@@ -44,10 +49,14 @@ SetAvailability setAvailability(Ref ref) {
 @riverpod
 class RiderDashboardController extends _$RiderDashboardController {
   Timer? _timer;
+  Timer? _poll;
 
   @override
   Future<RiderDashboardState> build() async {
-    ref.onDispose(() => _timer?.cancel());
+    ref.onDispose(() {
+      _timer?.cancel();
+      _poll?.cancel();
+    });
     ref.listen(connectivityResultsProvider, (previous, next) {
       final results = next.value;
       if (results == null) return;
@@ -55,6 +64,12 @@ class RiderDashboardController extends _$RiderDashboardController {
       unawaited(_flush());
     });
     final pending = await ref.watch(offlineActionQueueProvider).pendingCount();
+    // Seeded riders are online; sync availability + start offer polling.
+    unawaited(() async {
+      await ref.read(setAvailabilityProvider).call(isOnline: true);
+      await _pingFatehJang();
+      _startOfferPoll();
+    }());
     return RiderDashboardState(isOnline: true, pendingSyncCount: pending);
   }
 
@@ -62,21 +77,29 @@ class RiderDashboardController extends _$RiderDashboardController {
   Future<void> setOnline({required bool isOnline}) async {
     final current = state.value;
     if (current == null) return;
-    if (!isOnline) _timer?.cancel();
+    if (!isOnline) {
+      _timer?.cancel();
+      _poll?.cancel();
+    }
     state = AsyncData(
       current.copyWith(
         isOnline: isOnline,
         phase: isOnline ? current.phase : const Waiting(),
+        hint: isOnline ? current.hint : null,
       ),
     );
     final result = await ref.read(setAvailabilityProvider).call(
-      isOnline: isOnline,
-    );
+          isOnline: isOnline,
+        );
     await _afterWrite(
       result,
       current,
       ToggleOnlineAction(isOnline: isOnline),
     );
+    if (isOnline) {
+      await _pingFatehJang();
+      _startOfferPoll();
+    }
   }
 
   /// Starts the countdown for the next nearby request.
@@ -84,35 +107,68 @@ class RiderDashboardController extends _$RiderDashboardController {
     final current = state.value;
     if (current == null || !current.isOnline) return;
     if (current.phase is! Waiting) return;
-    await _offer();
+    await _offer(manual: true);
   }
 
-  /// Moves the trip from pickup to the customer.
-  void markPickedUp() {
+  /// Moves the trip from pickup to the customer (API pickup + enroute).
+  Future<void> markPickedUp() async {
     final current = state.value;
     final phase = current?.phase;
     if (current == null || phase is! Riding) return;
     if (phase.leg is! ToPickup) return;
+    final repo = ref.read(riderRepositoryProvider);
+    final pickup = await repo.pickupTask(phase.task.id);
+    switch (pickup) {
+      case Err(:final failure):
+        state = AsyncError(failure, StackTrace.current);
+        state = AsyncData(current);
+        return;
+      case Success():
+        break;
+    }
+    await repo.enrouteTask(phase.task.id);
     state = AsyncData(
       current.copyWith(phase: Riding(phase.task, leg: const ToDropoff())),
     );
   }
 
-  /// Accepts the offer on screen.
-  void accept() {
+  /// Accepts the offer on screen via the API.
+  Future<void> accept() async {
     final current = state.value;
     final phase = current?.phase;
     if (current == null || phase is! Offering) return;
     _timer?.cancel();
-    state = AsyncData(current.copyWith(phase: Riding(phase.task)));
+    final result =
+        await ref.read(riderRepositoryProvider).acceptTask(phase.task.id);
+    switch (result) {
+      case Success():
+        state = AsyncData(
+          current.copyWith(phase: Riding(phase.task), clearHint: true),
+        );
+      case Err(:final failure):
+        state = AsyncError(failure, StackTrace.current);
+        state = AsyncData(current.copyWith(phase: const Waiting()));
+    }
   }
 
   /// Declines the offer and stays online.
-  void decline() {
+  Future<void> decline() async {
     _timer?.cancel();
     final current = state.value;
+    final phase = current?.phase;
     if (current == null) return;
+    if (phase is Offering || phase is OfferExpired) {
+      final task = switch (phase) {
+        Offering(:final task) => task,
+        OfferExpired(:final task) => task,
+        _ => null,
+      };
+      if (task != null) {
+        await ref.read(riderRepositoryProvider).rejectTask(task.id);
+      }
+    }
     state = AsyncData(current.copyWith(phase: const Waiting()));
+    _startOfferPoll();
   }
 
   /// Confirms the trip with the customer's code.
@@ -121,21 +177,56 @@ class RiderDashboardController extends _$RiderDashboardController {
     final phase = current?.phase;
     if (current == null || phase is! Riding) return;
     if (phase.leg is! ToDropoff) return;
-    if (otp.trim().length != 6) {
+    if (otp.trim().length != 4 && otp.trim().length != 6) {
       _rejectCode(current);
       return;
     }
     await _finish(current, phase.task, otp.trim());
   }
 
-  Future<void> _offer() async {
+  void _startOfferPoll() {
+    _poll?.cancel();
+    final current = state.value;
+    if (current == null || !current.isOnline) return;
+    _poll = Timer.periodic(const Duration(seconds: 5), (_) {
+      unawaited(_offer(manual: false));
+    });
+  }
+
+  Future<void> _pingFatehJang() async {
+    await ref.read(riderRepositoryProvider).pingPosition(
+          lat: DemoConfig.zoneCenter.lat,
+          lng: DemoConfig.zoneCenter.lng,
+        );
+  }
+
+  Future<void> _offer({required bool manual}) async {
+    final current = state.value;
+    if (current == null || !current.isOnline) return;
+    if (current.phase is! Waiting) return;
     final result = await ref.read(riderRepositoryProvider).peekTask();
-    final task = switch (result) {
-      Success(:final value) => value,
-      Err() => null,
-    };
-    if (task == null) return;
-    _countDown(task, 30);
+    switch (result) {
+      case Success(:final value):
+        if (value == null) {
+          if (manual) {
+            state = AsyncData(
+              current.copyWith(
+                hint: 'No live offers yet. Order must be ready_for_pickup '
+                    'and dispatch must succeed. '
+                    'The old Tandoor House card was sample UI only.',
+              ),
+            );
+          }
+          return;
+        }
+        _poll?.cancel();
+        _countDown(value, 30);
+      case Err(:final failure):
+        if (manual) {
+          state = AsyncError(failure, StackTrace.current);
+          state = AsyncData(current);
+        }
+    }
   }
 
   void _countDown(RiderTask task, int seconds) {
@@ -145,6 +236,7 @@ class RiderDashboardController extends _$RiderDashboardController {
     state = AsyncData(
       current.copyWith(
         phase: Offering(task: task, secondsLeft: seconds),
+        clearHint: true,
       ),
     );
     _timer = Timer.periodic(const Duration(seconds: 1), _tick);
@@ -178,7 +270,7 @@ class RiderDashboardController extends _$RiderDashboardController {
 
   void _rejectCode(RiderDashboardState current) {
     state = AsyncError(
-      const ValidationFailure('Enter the 6-digit code'),
+      const ValidationFailure('Enter the delivery OTP from the order'),
       StackTrace.current,
     );
     state = AsyncData(current);
@@ -190,12 +282,13 @@ class RiderDashboardController extends _$RiderDashboardController {
     String otp,
   ) async {
     final result = await ref.read(riderRepositoryProvider).confirmDelivery(
-      taskId: task.id,
-      otp: otp,
-    );
+          taskId: task.id,
+          otp: otp,
+        );
     switch (result) {
       case Success():
         state = AsyncData(current.copyWith(phase: const Waiting()));
+        _startOfferPoll();
       case Err(failure: NetworkFailure()):
         await _keepLocally(
           current,

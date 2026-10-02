@@ -132,4 +132,32 @@ class SampleRiderRepository implements RiderRepository {
 
   @override
   Future<Result<RiderTask?>> peekTask() async => const Success(_previewTask);
+
+  @override
+  Future<Result<Nothing>> acceptTask(String taskId) async {
+    return const Success(nothing);
+  }
+
+  @override
+  Future<Result<Nothing>> rejectTask(String taskId) async {
+    return const Success(nothing);
+  }
+
+  @override
+  Future<Result<Nothing>> pickupTask(String taskId) async {
+    return const Success(nothing);
+  }
+
+  @override
+  Future<Result<Nothing>> enrouteTask(String taskId) async {
+    return const Success(nothing);
+  }
+
+  @override
+  Future<Result<Nothing>> pingPosition({
+    required double lat,
+    required double lng,
+  }) async {
+    return const Success(nothing);
+  }
 }

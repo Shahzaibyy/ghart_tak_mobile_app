@@ -89,14 +89,18 @@ class OrderRemoteDataSource {
   }
 
   OrderStatus _status(String raw) {
-    try {
-      return parseOrderStatus(raw);
-    } on FormatException {
-      return switch (raw) {
-        'preparing' || 'ready' || 'assigned' || 'offered' => const Accepted(),
-        'picked_up' || 'on_the_way' || 'enroute' => const PickedUp(),
-        _ => const Placed(),
-      };
-    }
+    return switch (raw) {
+      'placed' ||
+      'merchant_accepted' ||
+      'preparing' ||
+      'ready' ||
+      'ready_for_pickup' =>
+        const Placed(),
+      'offered' || 'assigned' || 'accepted' => const Accepted(),
+      'picked_up' || 'on_the_way' || 'enroute' => const PickedUp(),
+      'delivered' => const Delivered(),
+      'cancelled' => const Cancelled(),
+      _ => const Placed(),
+    };
   }
 }
