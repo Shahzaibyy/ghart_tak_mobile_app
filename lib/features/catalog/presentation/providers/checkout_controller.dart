@@ -90,7 +90,7 @@ class CheckoutController extends _$CheckoutController {
     final draft = OrderDraft(
       title: merchant.name,
       type: orderTypeFor(merchant.category),
-      zoneId: DemoConfig.attockZoneId,
+      zoneId: DemoConfig.defaultZoneId,
       merchantId: merchant.id,
       drop: const GeoPoint(
         lat: DemoConfig.demoDropLat,

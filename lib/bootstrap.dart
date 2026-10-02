@@ -9,7 +9,8 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 /// Initializes local storage, then starts the widget tree.
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (AppConfig.hasMapboxToken) {
+  // Mapbox Maps SDK has no Linux desktop implementation — skip token init.
+  if (AppConfig.canUseMapbox) {
     MapboxOptions.setAccessToken(AppConfig.mapboxAccessToken);
   }
   await Hive.initFlutter();

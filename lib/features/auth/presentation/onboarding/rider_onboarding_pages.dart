@@ -33,8 +33,8 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
   final _cnic = TextEditingController();
   final _plate = TextEditingController();
   final _licence = TextEditingController();
-  var _zoneId = DemoConfig.attockZoneId;
-  var _zoneName = 'Attock City';
+  var _zoneId = DemoConfig.defaultZoneId;
+  var _zoneName = 'Fateh Jang';
   var _vehicle = 'Motorcycle';
   final _docsDone = <String>{};
   String? _phoneError;
@@ -188,13 +188,15 @@ class _RiderOnboardingPagesState extends ConsumerState<RiderOnboardingPages> {
           },
           loading: () => const LinearProgressIndicator(minHeight: 2),
           error: (_, _) => ChoiceChips(
-            options: const ['Attock City', 'Hasan Abdal'],
+            options: const ['Fateh Jang', 'Attock City', 'Hasan Abdal'],
             selected: _zoneName,
             onSelect: (value) => setState(() {
               _zoneName = value;
-              _zoneId = value == 'Hasan Abdal'
-                  ? DemoConfig.hasanAbdalZoneId
-                  : DemoConfig.attockZoneId;
+              _zoneId = switch (value) {
+                'Hasan Abdal' => DemoConfig.hasanAbdalZoneId,
+                'Attock City' => DemoConfig.attockZoneId,
+                _ => DemoConfig.fatehJangZoneId,
+              };
             }),
           ),
         ),

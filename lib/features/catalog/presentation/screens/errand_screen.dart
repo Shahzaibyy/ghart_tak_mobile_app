@@ -208,7 +208,7 @@ class _ErrandScreenState extends ConsumerState<ErrandScreen> {
       OrderDraft(
         title: feedCategoryLabel(widget.category),
         type: orderTypeFor(widget.category),
-        zoneId: DemoConfig.attockZoneId,
+        zoneId: DemoConfig.defaultZoneId,
         drop: const GeoPoint(
           lat: DemoConfig.demoDropLat,
           lng: DemoConfig.demoDropLng,

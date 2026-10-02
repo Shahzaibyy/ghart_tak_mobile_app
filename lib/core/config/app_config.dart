@@ -1,3 +1,7 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// Build-time configuration injected with `--dart-define`.
 ///
 /// Never hardcode API keys or secrets in source.
@@ -14,11 +18,26 @@ abstract final class AppConfig {
     defaultValue: 'wss://ghartak-backend-j3g5.onrender.com',
   );
 
-  /// Mapbox public token (`pk.…`) for the Maps SDK. Empty until supplied.
-  static const mapboxAccessToken = String.fromEnvironment('ACCESS_TOKEN');
+  /// Mapbox public token (`pk.…`) for maps / raster tiles.
+  ///
+  /// Accepts either `ACCESS_TOKEN` (preferred) or `MAP_API_KEY` (`.env` alias).
+  static String get mapboxAccessToken {
+    const access = String.fromEnvironment('ACCESS_TOKEN');
+    if (access.isNotEmpty) return access;
+    return const String.fromEnvironment('MAP_API_KEY');
+  }
 
-  /// Whether the Mapbox Maps SDK can be initialised.
+  /// Whether a Mapbox public token was injected at build time.
   static bool get hasMapboxToken => mapboxAccessToken.isNotEmpty;
+
+  /// Maps SDK is mobile-only in this project (no Linux/desktop plugin).
+  static bool get mapsSdkSupported {
+    if (kIsWeb) return false;
+    return Platform.isAndroid || Platform.isIOS;
+  }
+
+  /// Token present **and** current platform can host the Maps SDK.
+  static bool get canUseMapbox => hasMapboxToken && mapsSdkSupported;
 
   /// Demo flavor: auto-fill `dev_otp` and soft-fail geo when unavailable.
   static const isDemo = bool.fromEnvironment('DEMO', defaultValue: true);

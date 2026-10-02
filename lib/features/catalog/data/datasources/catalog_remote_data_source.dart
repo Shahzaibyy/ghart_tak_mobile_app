@@ -58,7 +58,7 @@ class CatalogRemoteDataSource {
     final id = json['id'] as String;
     final name = (json['name'] as String?) ?? 'Merchant';
     final category = _categoryFor(json['category'] as String?);
-    final address = (json['address_text'] as String?) ?? 'Attock';
+    final address = (json['address_text'] as String?) ?? 'Fateh Jang';
     return Merchant(
       id: id,
       name: name,
@@ -76,7 +76,15 @@ class CatalogRemoteDataSource {
       deliveryFeeRupees: 80,
       minOrderRupees: 200,
       items: items,
+      lat: _asDouble(json['lat']),
+      lng: _asDouble(json['lng']),
     );
+  }
+
+  double? _asDouble(Object? raw) {
+    if (raw is num) return raw.toDouble();
+    if (raw is String) return double.tryParse(raw);
+    return null;
   }
 
   CatalogItem _itemFrom(Object? raw) {

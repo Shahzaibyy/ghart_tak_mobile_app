@@ -10,12 +10,13 @@ import 'package:attock_xpress/features/catalog/domain/entities/merchant.dart';
 import 'package:attock_xpress/features/catalog/presentation/providers/catalog_controller.dart';
 import 'package:attock_xpress/features/catalog/presentation/widgets/active_order_card.dart';
 import 'package:attock_xpress/features/catalog/presentation/widgets/merchant_card.dart';
+import 'package:attock_xpress/features/catalog/presentation/widgets/zone_merchants_map.dart';
 import 'package:attock_xpress/features/map/presentation/address_picker_page.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const _homeAddress = 'House 18, Street 4, Peoples Colony';
+const _homeAddress = 'Near Bismillah Restaurant, Fateh Jang';
 
 /// Customer home. Address, categories, and featured merchants.
 class HomeScreen extends ConsumerWidget {
@@ -111,6 +112,12 @@ class _Feed extends StatelessWidget {
               onQuickOrder: onQuickOrder,
               onSearch: onSearch,
             ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          sliver: SliverToBoxAdapter(
+            child: ZoneMerchantsMap(merchants: feed.merchants),
           ),
         ),
         _MerchantSliver(feed: feed, onOpenMerchant: onOpenMerchant),

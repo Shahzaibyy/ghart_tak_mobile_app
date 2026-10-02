@@ -20,6 +20,8 @@ class Merchant {
     this.badge = 'Open',
     this.perk = '',
     this.etaLabel = '',
+    this.lat,
+    this.lng,
   });
 
   /// Merchant id.
@@ -66,6 +68,12 @@ class Merchant {
 
   /// Range such as 25-30 min. Falls back to a single ETA.
   final String etaLabel;
+
+  /// Optional map latitude from the API seed.
+  final double? lat;
+
+  /// Optional map longitude from the API seed.
+  final double? lng;
 
   /// Time chip on the photo.
   String get etaSpan {

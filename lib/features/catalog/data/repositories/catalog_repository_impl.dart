@@ -7,10 +7,10 @@ import 'package:attock_xpress/features/catalog/domain/entities/merchant.dart';
 import 'package:attock_xpress/features/catalog/domain/repositories/catalog_repository.dart';
 import 'package:dio/dio.dart';
 
-/// Catalog backed by `GET /merchants` + `/catalog` for the Attock seed zone.
+/// Catalog backed by `GET /merchants` + `/catalog` for the demo zone.
 class CatalogRepositoryImpl implements CatalogRepository {
   /// Creates the repository.
-  const new(this._remote, {this.zoneId = DemoConfig.attockZoneId});
+  const new(this._remote, {this.zoneId = DemoConfig.defaultZoneId});
 
   final CatalogRemoteDataSource _remote;
 

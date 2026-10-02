@@ -213,7 +213,7 @@ class OnboardingController extends _$OnboardingController {
           normalized,
           devOtp: value.devOtp,
           channel: channel,
-          zoneId: _zoneId ?? DemoConfig.attockZoneId,
+          zoneId: _zoneId ?? DemoConfig.defaultZoneId,
         );
         return null;
       }(),
@@ -224,7 +224,7 @@ class OnboardingController extends _$OnboardingController {
   /// Rider: resend via SMS.
   Future<String?> riderSendSms() {
     final phone = _phone;
-    final zone = _zoneId ?? DemoConfig.attockZoneId;
+    final zone = _zoneId ?? DemoConfig.defaultZoneId;
     if (phone == null) return Future.value('Enter your number first.');
     return riderApply(phone, zoneId: zone, channel: OtpChannel.sms);
   }

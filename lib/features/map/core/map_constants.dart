@@ -1,17 +1,21 @@
+import 'package:attock_xpress/core/config/demo_config.dart';
 import 'package:attock_xpress/core/utils/geo_point.dart';
 
-/// Attock-district map defaults used by camera, bounds, and sample routes.
+/// District map defaults used by camera, bounds, and sample routes.
 abstract final class MapConstants {
-  /// Zone centre for Attock City (faster first tile load).
-  static const attockCenter = GeoPoint(lat: 33.7665, lng: 72.3607);
+  /// Active demo zone centre (Fateh Jang).
+  static const GeoPoint zoneCenter = DemoConfig.zoneCenter;
 
-  /// Sample merchant / pickup (Mall Road).
-  static const samplePickup = GeoPoint(lat: 33.7680, lng: 72.3650);
+  /// Alias kept for older call sites.
+  static const GeoPoint attockCenter = zoneCenter;
 
-  /// Sample customer drop (Peoples Colony).
-  static const sampleDrop = GeoPoint(lat: 33.7620, lng: 72.3550);
+  /// Sample merchant / pickup (Bismillah Restaurant).
+  static const samplePickup = GeoPoint(lat: 33.567565, lng: 72.641856);
 
-  /// Generous Attock district camera limits (lng, lat order in Mapbox only).
+  /// Sample customer drop near town centre.
+  static const GeoPoint sampleDrop = DemoConfig.demoDrop;
+
+  /// Camera limits covering Attock district including Fateh Jang.
   static const southwestLng = 72.0;
   static const southwestLat = 33.2;
   static const northeastLng = 73.1;
@@ -19,8 +23,8 @@ abstract final class MapConstants {
 
   static const minZoom = 8.0;
   static const maxZoom = 19.0;
-  static const defaultZoom = 13.0;
-  static const pickerZoom = 16.0;
+  static const defaultZoom = 13.5;
+  static const pickerZoom = 15.5;
 
   static const routeSourceId = 'route-src';
   static const routeLayerId = 'route-layer';

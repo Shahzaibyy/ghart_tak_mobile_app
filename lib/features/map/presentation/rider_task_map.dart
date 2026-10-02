@@ -6,8 +6,8 @@ import 'package:attock_xpress/core/utils/geo_point.dart';
 import 'package:attock_xpress/features/map/core/map_constants.dart';
 import 'package:attock_xpress/features/map/data/sample_route.dart';
 import 'package:attock_xpress/features/map/presentation/bhook_map.dart';
+import 'package:attock_xpress/features/map/presentation/desktop_fallback_map.dart';
 import 'package:attock_xpress/features/map/presentation/map_session.dart';
-import 'package:attock_xpress/features/rider_dashboard/presentation/widgets/route_sketch.dart';
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -39,13 +39,51 @@ class _RiderTaskMapState extends State<RiderTaskMap> {
 
   @override
   Widget build(BuildContext context) {
-    if (!AppConfig.hasMapboxToken) {
-      return RouteSketch(toDropoff: widget.toDropoff);
+    if (!AppConfig.canUseMapbox) {
+      return Stack(
+        children: [
+          DesktopFallbackMap(
+            center: MapConstants.zoneCenter,
+            zoom: 14,
+            route: SampleRoute.points,
+            markers: [
+              DesktopMapMarker(
+                point: MapConstants.samplePickup,
+                color: AppColors.gold,
+                icon: Icons.storefront,
+              ),
+              DesktopMapMarker(
+                point: MapConstants.sampleDrop,
+                color: AppColors.primary,
+              ),
+              DesktopMapMarker(
+                point: widget.toDropoff
+                    ? MapConstants.zoneCenter
+                    : MapConstants.samplePickup,
+                color: AppColors.text,
+                icon: Icons.delivery_dining,
+              ),
+            ],
+          ),
+          Positioned(
+            right: 16,
+            bottom: 280,
+            child: FloatingActionButton.extended(
+              heroTag: 'rider-navigate',
+              backgroundColor: AppColors.text,
+              foregroundColor: AppColors.surface,
+              onPressed: _openExternalNav,
+              icon: const Icon(Icons.navigation),
+              label: const Text('Navigate'),
+            ),
+          ),
+        ],
+      );
     }
     return Stack(
       children: [
         BhookMap(
-          center: MapConstants.attockCenter,
+          center: MapConstants.zoneCenter,
           zoom: 14,
           onReady: _onReady,
         ),
@@ -78,7 +116,7 @@ class _RiderTaskMapState extends State<RiderTaskMap> {
     );
     await _session.setRider(
       widget.toDropoff
-          ? MapConstants.attockCenter
+          ? MapConstants.zoneCenter
           : MapConstants.samplePickup,
     );
     final status = await Permission.locationWhenInUse.request();

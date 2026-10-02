@@ -8,10 +8,13 @@ import 'package:attock_xpress/core/widgets/gh_button.dart';
 import 'package:attock_xpress/features/map/core/map_constants.dart';
 import 'package:attock_xpress/features/map/data/geo_api.dart';
 import 'package:attock_xpress/features/map/presentation/bhook_map.dart';
+import 'package:attock_xpress/features/map/presentation/desktop_fallback_map.dart';
 import 'package:attock_xpress/features/map/presentation/map_session.dart';
 import 'package:attock_xpress/features/map/presentation/providers/map_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 
 /// Result of the address picker (pin + editable label).
 class PickedAddress {
@@ -29,7 +32,7 @@ class PickedAddress {
 class AddressPickerPage extends ConsumerStatefulWidget {
   /// Creates the picker.
   const new({
-    this.initial = MapConstants.attockCenter,
+    this.initial = MapConstants.zoneCenter,
     this.initialLabel,
     super.key,
   });
@@ -46,6 +49,7 @@ class AddressPickerPage extends ConsumerStatefulWidget {
 
 class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
   final _session = MapSession();
+  final _desktopMap = MapController();
   final _label = TextEditingController();
   final _search = TextEditingController();
   Timer? _debounce;
@@ -66,36 +70,30 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
     _label.dispose();
     _search.dispose();
     _session.dispose();
+    _desktopMap.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!AppConfig.hasMapboxToken) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Set delivery address')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Add ACCESS_TOKEN via --dart-define-from-file=config/dart_defines.json to use the map picker.',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-    }
-
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Stack(
         children: [
-          BhookMap(
-            center: widget.initial,
-            zoom: MapConstants.pickerZoom,
-            onReady: (map) => unawaited(_session.attach(map)),
-            onMapIdle: _onIdle,
-          ),
+          if (AppConfig.canUseMapbox)
+            BhookMap(
+              center: widget.initial,
+              zoom: MapConstants.pickerZoom,
+              onReady: (map) => unawaited(_session.attach(map)),
+              onMapIdle: _onIdle,
+            )
+          else
+            DesktopFallbackMap(
+              mapController: _desktopMap,
+              center: widget.initial,
+              zoom: MapConstants.pickerZoom,
+              onMapEvent: _onDesktopMapEvent,
+            ),
           const IgnorePointer(
             child: Center(
               child: Padding(
@@ -135,7 +133,7 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
                       textInputAction: TextInputAction.search,
                       onSubmitted: (_) => unawaited(_runSearch()),
                       decoration: InputDecoration(
-                        hintText: 'Search Attock…',
+                        hintText: 'Search Fateh Jang…',
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14,
@@ -181,6 +179,11 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
     );
   }
 
+  void _onDesktopMapEvent(MapEvent event) {
+    if (event is! MapEventMoveEnd) return;
+    _onIdle();
+  }
+
   void _onIdle() {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
@@ -189,7 +192,13 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
   }
 
   Future<void> _reverse() async {
-    final point = await _session.cameraCenter();
+    GeoPoint? point;
+    if (AppConfig.canUseMapbox) {
+      point = await _session.cameraCenter();
+    } else {
+      final c = _desktopMap.camera.center;
+      point = GeoPoint(lat: c.latitude, lng: c.longitude);
+    }
     if (point == null || !mounted) return;
     setState(() => _loading = true);
     final addr = await ref.read(geoApiProvider).reverse(point);
@@ -220,7 +229,14 @@ class _AddressPickerPageState extends ConsumerState<AddressPickerPage> {
       _label.text = hit.label;
       _search.clear();
     });
-    await _session.flyTo(hit.point);
+    if (AppConfig.canUseMapbox) {
+      await _session.flyTo(hit.point);
+    } else {
+      _desktopMap.move(
+        LatLng(hit.point.lat, hit.point.lng),
+        MapConstants.pickerZoom,
+      );
+    }
   }
 
   void _confirm() {
