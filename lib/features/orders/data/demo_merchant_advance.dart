@@ -2,16 +2,25 @@ import 'package:attock_xpress/core/config/app_config.dart';
 import 'package:attock_xpress/core/network/api_envelope.dart';
 import 'package:dio/dio.dart';
 
-/// Demo-only helper: signs in as Bismillah (`03003333001`) and advances an
-/// order to `ready_for_pickup`, then asks the API to dispatch a rider offer.
+/// Demo-only helper: signs in as the Fateh Jang merchant that owns the order,
+/// advances it to `ready_for_pickup`, then asks the API to dispatch a rider.
 ///
 /// Does **not** touch the customer's stored session tokens.
 class DemoMerchantAdvance {
   /// Creates the helper.
   const new();
 
-  /// Fateh Jang Bismillah merchant phone (seed guide).
-  static const merchantPhone = '03003333001';
+  /// Seeded Fateh Jang merchant phones (`03003333001`–`008`).
+  static const merchantPhones = <String>[
+    '03003333001',
+    '03003333002',
+    '03003333003',
+    '03003333004',
+    '03003333005',
+    '03003333006',
+    '03003333007',
+    '03003333008',
+  ];
 
   /// Runs accept → preparing → ready → dispatch for [orderId].
   ///
@@ -27,29 +36,15 @@ class DemoMerchantAdvance {
       ),
     );
     try {
-      final otpRes = await dio.post<Map<String, dynamic>>(
-        '/auth/otp/request',
-        data: {'phone': merchantPhone, 'role': 'merchant'},
-      );
-      final otpData = unwrapData<Map<String, dynamic>>(otpRes);
-      final otp = otpData['dev_otp'];
-      if (otp is! String || otp.isEmpty) {
-        return 'Merchant dev_otp missing — API must be APP_ENV=development.';
+      final owner = await _loginOwningMerchant(dio, orderId);
+      if (owner == null) {
+        return 'No seeded merchant owns this order '
+            '(tried Fateh Jang phones 03003333001–008). '
+            'Order from a Fateh Jang kitchen, then retry.';
       }
-      final verify = await dio.post<Map<String, dynamic>>(
-        '/auth/otp/verify',
-        data: {
-          'phone': merchantPhone,
-          'role': 'merchant',
-          'otp': otp,
-        },
-      );
-      final session = unwrapData<Map<String, dynamic>>(verify);
-      final token = session['access_token'];
-      if (token is! String) return 'Merchant login failed.';
-      dio.options.headers['Authorization'] = 'Bearer $token';
+      dio.options.headers['Authorization'] = 'Bearer $owner';
 
-      for (final action in ['accept', 'preparing', 'ready']) {
+      for (final action in ['preparing', 'ready']) {
         await dio.post<Map<String, dynamic>>(
           '/merchants/orders/$orderId/$action',
         );
@@ -70,5 +65,52 @@ class DemoMerchantAdvance {
     } on FormatException catch (error) {
       return error.message;
     }
+  }
+
+  /// Logs in each seeded merchant until `accept` succeeds for [orderId].
+  Future<String?> _loginOwningMerchant(Dio dio, String orderId) async {
+    for (final phone in merchantPhones) {
+      final token = await _merchantToken(dio, phone);
+      if (token == null) continue;
+      dio.options.headers['Authorization'] = 'Bearer $token';
+      try {
+        await dio.post<Map<String, dynamic>>(
+          '/merchants/orders/$orderId/accept',
+        );
+        return token;
+      } on DioException catch (error) {
+        final code = readApiError(error)?.code;
+        final message = readApiError(error)?.message ?? '';
+        // Wrong kitchen for this order — try the next seeded phone.
+        if (code == 'forbidden' ||
+            message.contains('does not own') ||
+            message.contains('not a party')) {
+          continue;
+        }
+        // Already accepted by this merchant — still the owner.
+        if (code == 'conflict' || message.contains('already')) {
+          return token;
+        }
+        rethrow;
+      }
+    }
+    return null;
+  }
+
+  Future<String?> _merchantToken(Dio dio, String phone) async {
+    final otpRes = await dio.post<Map<String, dynamic>>(
+      '/auth/otp/request',
+      data: {'phone': phone, 'role': 'merchant'},
+    );
+    final otpData = unwrapData<Map<String, dynamic>>(otpRes);
+    final otp = otpData['dev_otp'];
+    if (otp is! String || otp.isEmpty) return null;
+    final verify = await dio.post<Map<String, dynamic>>(
+      '/auth/otp/verify',
+      data: {'phone': phone, 'role': 'merchant', 'otp': otp},
+    );
+    final session = unwrapData<Map<String, dynamic>>(verify);
+    final token = session['access_token'];
+    return token is String ? token : null;
   }
 }

@@ -45,7 +45,7 @@ class RiderOfferScreen extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelLarge,
               ),
             ),
-            Text('Attock City', style: Theme.of(context).textTheme.bodySmall),
+            Text('Fateh Jang', style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
         const SizedBox(height: 20),

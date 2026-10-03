@@ -35,6 +35,10 @@ final activeZonesProvider = FutureProvider<List<ZoneOption>>((ref) async {
   } on DioException {
     return const [
       ZoneOption(
+        id: '11111111-1111-4111-8111-111111111104',
+        name: 'Fateh Jang',
+      ),
+      ZoneOption(
         id: '11111111-1111-4111-8111-111111111101',
         name: 'Attock City',
       ),

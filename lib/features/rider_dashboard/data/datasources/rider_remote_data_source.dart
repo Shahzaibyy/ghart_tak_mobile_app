@@ -69,14 +69,14 @@ class RiderRemoteDataSource {
     return _dio.post<void>('/riders/tasks/$taskId/enroute');
   }
 
-  /// Confirms delivery with the customer [otp].
+  /// Confirms delivery with the customer [otp] (`delivery_otp`, 4 digits).
   Future<void> confirmDelivery({
     required String taskId,
     required String otp,
   }) {
     return _dio.post<void>(
       '/riders/tasks/$taskId/deliver',
-      data: <String, String>{'otp': otp},
+      data: <String, String>{'delivery_otp': otp},
     );
   }
 

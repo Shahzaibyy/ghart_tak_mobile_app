@@ -29,12 +29,22 @@ class ZoneMerchantsMap extends StatelessWidget {
             icon: Icons.restaurant,
           ),
     ];
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.card),
+    return Material(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.darkLine
+              : AppColors.line,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: SizedBox(
         height: height,
         width: double.infinity,
         child: Stack(
+          fit: StackFit.expand,
           children: [
             DesktopFallbackMap(
               center: MapConstants.zoneCenter,
@@ -50,19 +60,24 @@ class ZoneMerchantsMap extends StatelessWidget {
               bottom: 12,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: AppColors.surface.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                  color: AppColors.surface.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [AppShadow.floating],
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                    horizontal: 12,
+                    vertical: 7,
                   ),
                   child: Text(
                     pins.isEmpty
                         ? 'Fateh Jang'
                         : '${pins.length} kitchens nearby',
-                    style: Theme.of(context).textTheme.labelMedium,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),

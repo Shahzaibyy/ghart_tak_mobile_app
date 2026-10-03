@@ -5,7 +5,7 @@ import 'package:attock_xpress/core/widgets/remote_image.dart';
 import 'package:attock_xpress/features/catalog/domain/entities/merchant.dart';
 import 'package:flutter/material.dart';
 
-/// Featured merchant. The photo is 4:3 and clipped to the card.
+/// Featured merchant card matching v2 HTML (photo + open tag + rating line).
 class MerchantCard extends StatefulWidget {
   /// Creates a card that opens [merchant].
   const new({required this.merchant, required this.onTap, super.key});
@@ -30,7 +30,7 @@ class _MerchantCardState extends State<MerchantCard> {
     final line = dark ? AppColors.darkLine : AppColors.line;
     final surface = dark ? AppColors.darkSurface : AppColors.surface;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: surface,
         shape: RoundedRectangleBorder(
@@ -43,12 +43,97 @@ class _MerchantCardState extends State<MerchantCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Photo(
-                merchant: merchant,
-                saved: _saved,
-                onSave: () => setState(() => _saved = !_saved),
+              SizedBox(
+                height: 116,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    RemoteImage(url: merchant.photoUrl, radius: 0),
+                    Positioned(
+                      left: 10,
+                      top: 10,
+                      child: _Pill(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(GhIcons.clock, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              merchant.etaSpan,
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: Material(
+                        color: AppColors.surface,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => setState(() => _saved = !_saved),
+                          child: SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Icon(
+                              _saved ? GhIcons.heartFill : GhIcons.heart,
+                              size: 18,
+                              color: _saved
+                                  ? AppColors.primary
+                                  : AppColors.text,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              _Copy(merchant: merchant),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            merchant.name,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        _OpenTag(label: merchant.badge),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      merchant.blurb,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          GhIcons.starFill,
+                          size: 14,
+                          color: AppColors.gold,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${merchant.rating} · ${_fee(merchant)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -57,80 +142,7 @@ class _MerchantCardState extends State<MerchantCard> {
   }
 }
 
-class _Photo extends StatelessWidget {
-  const new({
-    required this.merchant,
-    required this.saved,
-    required this.onSave,
-  });
-
-  final Merchant merchant;
-  final bool saved;
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 4 / 3,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          RemoteImage(url: merchant.photoUrl, radius: 0),
-          Positioned(
-            left: 12,
-            top: 12,
-            child: _Glass(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(GhIcons.starFill, size: 12, color: AppColors.gold),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${merchant.rating} (${merchant.ratingCount})',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            right: 12,
-            top: 12,
-            child: _Glass(
-              child: InkWell(
-                onTap: onSave,
-                child: Icon(
-                  saved ? GhIcons.heartFill : GhIcons.heart,
-                  size: 16,
-                  color: saved ? AppColors.primary : AppColors.text,
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 12,
-            bottom: 12,
-            child: _Glass(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(GhIcons.clock, size: 12),
-                  const SizedBox(width: 4),
-                  Text(
-                    merchant.etaSpan,
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Glass extends StatelessWidget {
+class _Pill extends StatelessWidget {
   const new({required this.child});
 
   final Widget child;
@@ -139,69 +151,18 @@ class _Glass extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         child: child,
       ),
     );
   }
 }
 
-class _Copy extends StatelessWidget {
-  const new({required this.merchant});
-
-  final Merchant merchant;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${merchant.name} · ${merchant.area}',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _Badge(label: merchant.badge),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(merchant.blurb, style: Theme.of(context).textTheme.bodySmall),
-          if (merchant.perk.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              merchant.perk,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.success,
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Text(
-            '${_fee(merchant)} · Min ${rupees(merchant.minOrderRupees)}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _fee(Merchant merchant) {
-  if (merchant.deliveryFeeRupees == 0) return 'Free delivery';
-  return '${rupees(merchant.deliveryFeeRupees)} delivery';
-}
-
-class _Badge extends StatelessWidget {
+class _OpenTag extends StatelessWidget {
   const new({required this.label});
 
   final String label;
@@ -210,18 +171,24 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.success.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: AppColors.success,
-          ),
+                color: AppColors.success,
+                fontSize: 12,
+              ),
         ),
       ),
     );
   }
+}
+
+String _fee(Merchant merchant) {
+  if (merchant.deliveryFeeRupees == 0) return 'Free delivery';
+  return '${rupees(merchant.deliveryFeeRupees)} delivery';
 }

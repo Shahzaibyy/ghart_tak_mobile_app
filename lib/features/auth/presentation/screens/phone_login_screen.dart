@@ -51,6 +51,7 @@ class _PhoneLoginScreenState extends ConsumerState<PhoneLoginScreen> {
               _phone.text = seed;
             }
             if (step is EnterOtp &&
+                AppConfig.useDevOtpAutoFill &&
                 step.devOtp != null &&
                 _otp.text.isEmpty) {
               _otp.text = step.devOtp!;

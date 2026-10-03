@@ -11,6 +11,7 @@ class Order {
     required this.deliveryFee,
     this.title = 'Order',
     this.photoUrl,
+    this.deliveryOtp,
   });
 
   /// Order id.
@@ -30,4 +31,7 @@ class Order {
 
   /// Merchant photo, when the order has one.
   final String? photoUrl;
+
+  /// 4-digit door code returned on place / get (customer only).
+  final String? deliveryOtp;
 }

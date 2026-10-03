@@ -4,10 +4,13 @@ import 'package:attock_xpress/core/errors/result.dart';
 import 'package:attock_xpress/core/utils/geo_point.dart';
 import 'package:attock_xpress/features/catalog/domain/order_type_for.dart';
 import 'package:attock_xpress/features/catalog/domain/usecases/place_order.dart';
+import 'package:attock_xpress/features/catalog/domain/usecases/quote_order.dart';
 import 'package:attock_xpress/features/catalog/presentation/providers/cart_controller.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_draft.dart';
+import 'package:attock_xpress/features/orders/domain/entities/order_quote.dart';
 import 'package:attock_xpress/features/orders/presentation/providers/orders_controller.dart';
 import 'package:attock_xpress/features/payments/domain/entities/payment_method.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'checkout_controller.g.dart';
@@ -69,6 +72,50 @@ class PayChoice extends _$PayChoice {
   }
 }
 
+/// Live fee preview for the open cart (`POST /orders/quote`).
+///
+/// Totals come from the server — never invent `distance_km` or fees on device.
+final FutureProvider<OrderQuote?> checkoutQuoteProvider =
+    FutureProvider.autoDispose<OrderQuote?>((ref) async {
+  final cart = ref.watch(cartControllerProvider);
+  final method = ref.watch(payChoiceProvider);
+  final merchant = cart.merchant;
+  if (merchant == null || cart.isEmpty) return null;
+
+  final draft = OrderDraft(
+    title: merchant.name,
+    type: orderTypeFor(merchant.category),
+    zoneId: DemoConfig.defaultZoneId,
+    merchantId: merchant.id,
+    drop: const GeoPoint(
+      lat: DemoConfig.demoDropLat,
+      lng: DemoConfig.demoDropLng,
+    ),
+    dropAddress: DemoConfig.demoDropAddress,
+    paymentMethod: paymentMethodWire(method),
+    // Quote body ignores client_request_id; keep draft shape valid.
+    clientRequestId: 'quote-preview',
+    items: [
+      for (final line in cart.lines)
+        OrderLineDraft(
+          catalogItemId: line.item.id,
+          quantity: line.quantity,
+        ),
+    ],
+    photoUrl: merchant.photoUrl,
+    deliveryFee: cart.deliveryFee,
+    paymentLabel: paymentMethodLabel(method),
+  );
+
+  final result = await QuoteOrder(ref.watch(orderRepositoryProvider)).call(
+    draft,
+  );
+  return switch (result) {
+    Success(:final value) => value,
+    Err(:final failure) => throw failure,
+  };
+});
+
 /// Checkout progress. The basket itself stays on [CartController].
 @riverpod
 class CheckoutController extends _$CheckoutController {
@@ -85,8 +132,7 @@ class CheckoutController extends _$CheckoutController {
     final method = ref.read(payChoiceProvider);
     state = const SubmittingCart();
 
-    _clientRequestId ??=
-        'req-${DateTime.now().millisecondsSinceEpoch}';
+    _clientRequestId ??= 'req-${DateTime.now().millisecondsSinceEpoch}';
     final draft = OrderDraft(
       title: merchant.name,
       type: orderTypeFor(merchant.category),

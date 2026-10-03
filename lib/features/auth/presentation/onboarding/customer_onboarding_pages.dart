@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:attock_xpress/core/config/app_config.dart';
 import 'package:attock_xpress/core/icons/gh_icons.dart';
 import 'package:attock_xpress/core/theme/app_colors.dart';
 import 'package:attock_xpress/core/widgets/brand_mark.dart';
@@ -179,16 +180,19 @@ class _CustomerOnboardingPagesState
                     ),
                   );
                 },
-          secondaryLabel: 'Continue with Google',
-          onSecondary: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Google sign-in needs Firebase. Use phone OTP for demos.',
-                ),
-              ),
-            );
-          },
+          secondaryLabel:
+              AppConfig.enableGoogleSignIn ? 'Continue with Google' : null,
+          onSecondary: AppConfig.enableGoogleSignIn
+              ? () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Google sign-in needs Firebase. Use phone OTP for demos.',
+                      ),
+                    ),
+                  );
+                }
+              : null,
           textLabel: 'Sign up with email',
           onText: () {
             ScaffoldMessenger.of(context).showSnackBar(

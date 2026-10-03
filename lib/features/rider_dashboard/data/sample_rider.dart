@@ -83,24 +83,24 @@ const _previewTask = RiderTask(
   bag: 'Standard bag',
 );
 
-/// Home numbers for the Attock preview.
+/// Home numbers for the Fateh Jang preview.
 const RiderDesk previewDesk = RiderDesk(
   todayRupees: 1850,
   completed: 6,
   rating: 4.92,
-  listening: 'Attock City & Peoples Colony',
-  demand: 'High demand in Attock City · 1.2x boost active',
-  queueNote: 'Mall Road queue is moving fast',
+  listening: 'Fateh Jang town centre',
+  demand: 'High demand near Bismillah · 1.2x boost active',
+  queueNote: 'Attock Chowk queue is moving fast',
   zones: [
     SurgeZone(
-      name: 'Hazro Bazaar',
+      name: 'Attock Chowk',
       detail: 'Average pickup under 4 mins',
       extraRupees: 60,
       iconFood: true,
     ),
     SurgeZone(
-      name: 'Peoples Colony',
-      detail: 'Errands and grocery batch',
+      name: 'Railway Station Rd',
+      detail: 'Food and grocery batch',
       extraRupees: 40,
       iconFood: false,
     ),

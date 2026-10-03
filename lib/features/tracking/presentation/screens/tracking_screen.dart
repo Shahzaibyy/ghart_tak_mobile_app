@@ -40,6 +40,7 @@ class TrackingScreen extends ConsumerStatefulWidget {
 
 class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   late OrderStatus _status = widget.status;
+  String? _deliveryOtp;
   Timer? _poll;
   var _advancing = false;
   String? _advanceNote;
@@ -65,8 +66,14 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     if (!mounted) return;
     switch (result) {
       case Success(:final value):
-        if (value.status.runtimeType != _status.runtimeType) {
-          setState(() => _status = value.status);
+        final statusChanged =
+            value.status.runtimeType != _status.runtimeType;
+        final otpChanged = value.deliveryOtp != _deliveryOtp;
+        if (statusChanged || otpChanged) {
+          setState(() {
+            _status = value.status;
+            _deliveryOtp = value.deliveryOtp;
+          });
         }
       case Err():
         break;
@@ -107,6 +114,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                   title: widget.title,
                   status: _status,
                   orderId: widget.orderId,
+                  deliveryOtp: _deliveryOtp,
                   advancing: _advancing,
                   advanceNote: _advanceNote,
                   onAdvance: AppConfig.isDemo && _status is Placed
@@ -152,6 +160,7 @@ class _Sheet extends StatelessWidget {
     required this.title,
     required this.status,
     required this.orderId,
+    required this.deliveryOtp,
     required this.advancing,
     required this.advanceNote,
     required this.onAdvance,
@@ -160,6 +169,7 @@ class _Sheet extends StatelessWidget {
   final String title;
   final OrderStatus status;
   final String orderId;
+  final String? deliveryOtp;
   final bool advancing;
   final String? advanceNote;
   final VoidCallback? onAdvance;
@@ -208,6 +218,15 @@ class _Sheet extends StatelessWidget {
                 _detail(status, title),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (deliveryOtp != null && deliveryOtp!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Door code for rider: $deliveryOtp',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AppColors.primary,
+                      ),
+                ),
+              ],
               const SizedBox(height: 16),
               _Stepper(status: status),
               if (showRider) ...[

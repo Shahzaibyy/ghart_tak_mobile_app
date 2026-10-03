@@ -6,6 +6,8 @@ abstract final class AppColors {
   static const surface = Color(0xFFFFFFFF);
   static const primary = Color(0xFFD96B41);
   static const primaryPressed = Color(0xFFC25A32);
+  /// Deep terracotta used for promo banners (HTML `--pd`).
+  static const primaryDeep = Color(0xFFB9552F);
   static const text = Color(0xFF1C1917);
   static const textMuted = Color(0xFF78716C);
   static const line = Color(0xFFEDE7E0);

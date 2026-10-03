@@ -39,8 +39,35 @@ abstract final class AppConfig {
   /// Token present **and** current platform can host the Maps SDK.
   static bool get canUseMapbox => hasMapboxToken && mapsSdkSupported;
 
-  /// Demo flavor: auto-fill `dev_otp` and soft-fail geo when unavailable.
+  /// Demo flavor: soft showcase mode (seed chips, demo advance, etc.).
   static const isDemo = bool.fromEnvironment('DEMO', defaultValue: true);
+
+  /// Auto-fill `dev_otp` from `POST /auth/otp/request` in development.
+  ///
+  /// Defaults on when [isDemo] is true. Override with
+  /// `--dart-define=USE_DEV_OTP_AUTOFILL=false`.
+  static bool get useDevOtpAutoFill {
+    const raw = String.fromEnvironment('USE_DEV_OTP_AUTOFILL');
+    if (raw == 'true') return true;
+    if (raw == 'false') return false;
+    return isDemo;
+  }
+
+  /// Show Google sign-in. Keep false until Firebase + `POST /auth/google`
+  /// are configured on the backend.
+  static const enableGoogleSignIn = bool.fromEnvironment(
+    'ENABLE_GOOGLE_SIGN_IN',
+    defaultValue: false,
+  );
+
+  /// Call backend `/geo/*` (needs `MAPBOX_BACKEND_TOKEN` on the server).
+  /// When false, map address search uses the local sample fallback only.
+  static bool get enableMapboxGeo {
+    const raw = String.fromEnvironment('ENABLE_MAPBOX_GEO');
+    if (raw == 'true') return true;
+    if (raw == 'false') return false;
+    return true;
+  }
 
   /// Legacy Google Maps key (unused while Mapbox is the map stack).
   static const googleMapsApiKey = String.fromEnvironment(

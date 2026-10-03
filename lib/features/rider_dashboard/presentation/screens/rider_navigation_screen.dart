@@ -216,8 +216,11 @@ class _Sheet extends StatelessWidget {
               TextField(
                 controller: otp,
                 keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: const InputDecoration(labelText: 'Customer code'),
+                maxLength: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Delivery OTP (4 digits)',
+                  helperText: 'Ask the customer for the code from their order',
+                ),
               ),
             ],
             const SizedBox(height: 8),

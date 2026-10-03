@@ -4,9 +4,9 @@ import 'package:attock_xpress/features/orders/domain/entities/order.dart';
 import 'package:attock_xpress/features/orders/domain/entities/order_status.dart';
 import 'package:flutter/material.dart';
 
-/// Floating card for the order that is still on the way.
+/// Live order strip (Foodpanda-style) shown on Home when an order is active.
 class ActiveOrderCard extends StatelessWidget {
-  /// Creates the card. Hidden when [order] is null.
+  /// Creates the strip. Hidden when [order] is null.
   const new({required this.order, required this.onTap, super.key});
 
   /// In-progress order, if any.
@@ -19,51 +19,72 @@ class ActiveOrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = order;
     if (current == null) return const SizedBox.shrink();
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final surface = dark ? AppColors.darkSurface : AppColors.surface;
-    final accent = dark ? AppColors.darkPrimary : AppColors.primary;
-    final muted = dark ? AppColors.darkTextMuted : AppColors.textMuted;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: AppColors.tint,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          boxShadow: const [AppShadow.floating],
+          side: const BorderSide(color: AppColors.primary),
         ),
-        child: Material(
-          color: surface,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(GhIcons.moped, color: accent),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          current.title,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        Text(
-                          orderStatusLabel(current.status),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                const Icon(GhIcons.moped, color: AppColors.primary, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${current.title} is on the way',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      Text(
+                        '${_eta(current.status)}. Chai bana lo.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    child: Text(
+                      'Track',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: const Color(0xFF8A6A2E),
+                            fontSize: 12,
+                          ),
                     ),
                   ),
-                  Icon(GhIcons.caretRight, color: muted),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+}
+
+String _eta(OrderStatus status) {
+  return switch (status) {
+    Placed() => 'Finding rider',
+    Accepted() => '8 min door',
+    PickedUp() => '12 min door',
+    Delivered() => 'Arrived',
+    Cancelled() => 'Stopped',
+  };
 }

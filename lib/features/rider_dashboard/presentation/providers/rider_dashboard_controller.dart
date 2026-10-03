@@ -177,7 +177,7 @@ class RiderDashboardController extends _$RiderDashboardController {
     final phase = current?.phase;
     if (current == null || phase is! Riding) return;
     if (phase.leg is! ToDropoff) return;
-    if (otp.trim().length != 4 && otp.trim().length != 6) {
+    if (otp.trim().length != 4) {
       _rejectCode(current);
       return;
     }
@@ -270,7 +270,7 @@ class RiderDashboardController extends _$RiderDashboardController {
 
   void _rejectCode(RiderDashboardState current) {
     state = AsyncError(
-      const ValidationFailure('Enter the delivery OTP from the order'),
+      const ValidationFailure('Enter the 4-digit delivery OTP from the customer'),
       StackTrace.current,
     );
     state = AsyncData(current);

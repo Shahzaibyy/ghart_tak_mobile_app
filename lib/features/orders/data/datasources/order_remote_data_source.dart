@@ -85,6 +85,7 @@ class OrderRemoteDataSource {
       status: _status(status),
       deliveryFee: feeValue,
       photoUrl: photoUrl,
+      deliveryOtp: json['delivery_otp'] as String?,
     );
   }
 
